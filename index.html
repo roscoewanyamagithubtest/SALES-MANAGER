@@ -31,6 +31,8 @@
     .btn-secondary{background:#64748b;color:#fff;}
     .muted{color:var(--muted);font-size:0.9em}
     .small{font-size:0.9em;padding:4px 8px}
+    .unsaved{background-color:rgba(255,215,0,0.1);border-left:4px solid #ffd700;}
+    .saved{background-color:rgba(34,197,94,0.1);border-left:4px solid #22c55e;}
     /* Modals */
     .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;z-index:9999;}
     .modal .modal-box{background:#fff;color:#000;padding:20px;width:600px;max-height:90%;overflow:auto;border-radius:var(--radius);}
@@ -84,6 +86,24 @@
     <section data-view="dashboard" class="view card">
       <h2>Dashboard</h2>
       <p>Welcome to your Sales System overview.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-top:20px;">
+        <div class="card" style="text-align:center;">
+          <h3>Total Sales</h3>
+          <div style="font-size:2em;color:var(--accent);" id="dashTotalSales">UGX 0</div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <h3>Total Expenses</h3>
+          <div style="font-size:2em;color:#ef4444;" id="dashTotalExpenses">UGX 0</div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <h3>Inventory Items</h3>
+          <div style="font-size:2em;color:#22c55e;" id="dashInventoryCount">0</div>
+        </div>
+        <div class="card" style="text-align:center;">
+          <h3>Total Deposits</h3>
+          <div style="font-size:2em;color:#f59e0b;" id="dashTotalDeposits">UGX 0</div>
+        </div>
+      </div>
     </section>
 
     <!-- Sales -->
@@ -93,7 +113,7 @@
         <button class="btn btn-secondary" onclick="printSales()">🖨️ Print All Sales</button>
       </h2>
       <table class="table" id="salesTable">
-        <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Total</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
     </section>
@@ -106,7 +126,7 @@
       </h2>
       <table class="table" id="inventoryTable">
         <thead>
-          <tr><th>Item</th><th>Category</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Reorder</th><th>Actions</th></tr>
+          <tr><th>Item</th><th>Category</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Reorder</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -125,10 +145,10 @@
         <button class="btn btn-secondary" onclick="renderExpenses()">Reset</button>
       </div>
       <table class="table" id="expensesTable">
-        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Paid By</th><th>Notes</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody></tbody>
         <tfoot>
-          <tr><td colspan="7" id="expenseTotal" style="text-align:right;font-weight:bold;"></td></tr>
+          <tr><td colspan="6" id="expenseTotal" style="text-align:right;font-weight:bold;"></td></tr>
         </tfoot>
       </table>
     </section>
@@ -141,7 +161,7 @@
       </h2>
       <table class="table" id="employeesTable">
         <thead>
-          <tr><th>Name</th><th>Position</th><th>Email</th><th>Phone</th><th>Actions</th></tr>
+          <tr><th>Name</th><th>Position</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -155,7 +175,7 @@
       </h2>
       <table class="table" id="suppliersTable">
         <thead>
-          <tr><th>Name</th><th>Contact</th><th>Email</th><th>Actions</th></tr>
+          <tr><th>Name</th><th>Contact</th><th>Email</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -169,13 +189,13 @@
       </h2>
       <table class="table" id="depositsTable">
         <thead>
-          <tr><th>Date</th><th>Client</th><th>Amount</th><th>Balance</th><th>Actions</th></tr>
+          <tr><th>Date</th><th>Client</th><th>Item Deposited On</th><th>Initial Amount</th><th>Remaining Balance</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
     </section>
 
-    <!-- Records (NEW - advanced search + pagination) -->
+    <!-- Records -->
     <section data-view="records" class="view card" style="display:none">
       <h2>Company Records</h2>
 
@@ -225,11 +245,20 @@
       </div>
     </section>
 
-    <!-- Settings (includes User Management) -->
+    <!-- Settings -->
     <section data-view="settings" class="view card" style="display:none">
       <h2>Settings</h2>
-      <p>Configure system preferences here. (Admin only: manage users)</p>
       <div id="settingsAdminArea"></div>
+      <hr/>
+      <h3>Company Details (printed on receipts)</h3>
+      <form id="companyForm">
+        <label>Company Name</label><input id="companyName" />
+        <label>Location</label><input id="companyLocation" />
+        <label>P.O. Box</label><input id="companyBox" />
+        <label>Telephone</label><input id="companyTel" />
+        <label>Email</label><input id="companyEmail" />
+        <div style="text-align:right;margin-top:8px;"><button class="btn btn-primary">Save Company</button></div>
+      </form>
     </section>
   </main>
 </div>
@@ -280,8 +309,9 @@
   <div class="modal-box">
     <h2>New Sale</h2>
     <form id="saleForm">
+      <input type="hidden" id="saleId"/>
       <label>Customer</label><input id="customerName" required/>
-      <label>Contact</label><input id="Phone number" required/>
+      <label>Phone Number</label><input id="customerContact" required/>
       <div style="display:flex;gap:8px;align-items:center;margin:8px 0;">
         <label class="inline">Sale discount (flat):</label><input id="saleDiscount" type="number" value="0" style="width:120px"/>
         <label class="inline">Sale discount (%) :</label><input id="saleDiscountPct" type="number" value="0" style="width:80px"/>
@@ -324,6 +354,7 @@
   <div class="modal-box">
     <h2>Add Expense</h2>
     <form id="expenseForm">
+      <input type="hidden" id="expenseId"/>
       <label>Date</label><input type="date" id="expenseDate" required/>
       <label>Category</label><input id="expenseCategory" required/>
       <label>Description</label><input id="expenseDesc" required/>
@@ -379,8 +410,9 @@
       <input type="hidden" id="depositId"/>
       <label>Date</label><input type="date" id="depositDate" required/>
       <label>Client</label><input id="depositClient" required/>
-      <label>Amount</label><input type="number" id="depositAmount" required/>
-      <label>Balance</label><input type="number" id="depositBalance"/>
+      <label>Item Deposited On</label><input id="depositItem" required placeholder="What item/service is this deposit for?"/>
+      <label>Initial Amount</label><input type="number" id="depositAmount" required/>
+      <label>Amount Used (optional)</label><input type="number" id="depositUsed" value="0" placeholder="Amount used from deposit"/>
       <div style="text-align:right;margin-top:10px;">
         <button type="submit" class="btn btn-primary">Save</button>
         <button type="button" class="btn btn-secondary" onclick="closeDepositModal()">Cancel</button>
@@ -393,7 +425,7 @@
 /* ===========================
    STORAGE & INITIAL STATE
    =========================== */
-const STORAGE_KEY = "sales_system_data_v2";
+const STORAGE_KEY = "sales_system_data_v3";
 const fmt = n => "UGX " + Number(n||0).toLocaleString();
 const idf = () => Math.random().toString(36).substr(2,9);
 
@@ -411,12 +443,41 @@ if(!state.users) {
   ];
 }
 if(!state.meta) state.meta={currentUserId:null};
+if(!state.company) state.company={name:'', location:'', box:'', tel:'', email:''};
 
 // helper to persist
-function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateUIForAuth(); }
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateUIForAuth(); updateDashboard(); }
 
 // currently logged in user (object or null)
 function currentUser(){ return state.users.find(u=>u.id===state.meta.currentUserId) || null; }
+
+// Company header for all receipts
+function companyHeaderHTML(){
+  const c = state.company || {};
+  return `<div style="text-align:center;margin-bottom:20px;">` +
+         `<h2 style="margin:0;padding:0;">${c.name || 'Sales System'}</h2>` +
+         `<div>${c.location || ''} ${c.box ? ('P.O. Box ' + c.box) : ''}</div>` +
+         `<div>Tel: ${c.tel || ''} ${c.email ? ('| Email: ' + c.email) : ''}</div>` +
+         `<hr style="border:1px solid #ccc;"/></div>`;
+}
+
+// Update dashboard statistics
+function updateDashboard(){
+  const totalSales = state.sales.reduce((sum, s) => sum + (s.total || 0), 0);
+  const totalExpenses = state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const inventoryCount = state.inventory.length;
+  const totalDeposits = state.deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+  
+  const dashSales = document.getElementById('dashTotalSales');
+  const dashExpenses = document.getElementById('dashTotalExpenses');
+  const dashInventory = document.getElementById('dashInventoryCount');
+  const dashDeposits = document.getElementById('dashTotalDeposits');
+  
+  if(dashSales) dashSales.textContent = fmt(totalSales);
+  if(dashExpenses) dashExpenses.textContent = fmt(totalExpenses);
+  if(dashInventory) dashInventory.textContent = inventoryCount;
+  if(dashDeposits) dashDeposits.textContent = fmt(totalDeposits);
+}
 
 /* ===========================
    AUTH (CLIENT-SIDE)
@@ -433,7 +494,6 @@ document.getElementById('loginForm').addEventListener('submit', e=>{
   renderAll(); alert('Logged in as '+user.username);
 });
 function logout(){ state.meta.currentUserId = null; save(); showLogin(); renderAll(); }
-function requireAuthOrRedirect(){ if(!currentUser()) showLogin(); }
 
 /* ===========================
    NAVIGATION
@@ -453,34 +513,45 @@ document.querySelectorAll("#navList .nav-item").forEach(nav=>{
 });
 
 /* ===========================
-   SALES (editable prices & discounts)
+   SALES (with save status tracking)
    =========================== */
 function renderSales(){
   const tbody = document.querySelector('#salesTable tbody'); tbody.innerHTML='';
-  state.sales.forEach(s=>{
-    const items = s.items.map(i=>`${i.name} x${i.qty} @ ${fmt(i.price)}`).join(', ');
+  state.sales.forEach((s, index) => {
+    const items = s.items ? s.items.map(i=>`${i.name} x${i.qty} @ ${fmt(i.price)}`).join(', ') : 'No items';
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${s.date}</td><td>${s.customer}</td><td>${items}</td><td>${fmt(s.total)}</td>
+    const isSaved = s.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>' 
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${s.date}</td><td>${s.customer}</td><td>${items}</td><td>${fmt(s.total)}</td><td>${statusBadge}</td>
       <td>
-        <button class="btn btn-secondary" onclick="printSale('${s.id}')">🖨️ Receipt</button>
-        <button class="btn btn-danger" onclick="deleteSale('${s.id}')">Delete</button>
+        <button class="btn btn-secondary small" onclick="printSale('${s.id}')">🖨️</button>
+        ${!isSaved ? `<button class="btn btn-primary small" onclick="editSale(${index})">Edit</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteSale('${s.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markSaleSaved('${s.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteSale('${s.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
 }
+
 function openSaleModal(){ 
   const user = currentUser();
   if(!user || !user.canCreateSales) { alert('You do not have permission to create sales'); return; }
   document.getElementById('saleForm').reset();
+  document.getElementById('saleId').value = '';
   document.getElementById('saleItems').innerHTML='';
   addSaleItem();
   document.getElementById('saleTotalDisplay').innerText = 'Total: UGX 0';
   document.getElementById('saleModal').style.display='flex';
 }
+
 function closeSaleModal(){document.getElementById('saleModal').style.display='none';}
+
 function addSaleItem(prefItemId){
   const div=document.createElement('div'); div.style.display='flex'; div.style.gap='5px'; div.style.marginBottom='6px';
-  // create select with inventory and include data-cost attr
   const select = document.createElement('select'); select.required = true;
   (state.inventory.length ? state.inventory : [{id:'',name:'-- no items --',cost:0}]).forEach(i=>{
     const opt = document.createElement('option');
@@ -492,15 +563,12 @@ function addSaleItem(prefItemId){
   });
   const qty = document.createElement('input'); qty.type='number'; qty.placeholder='Qty'; qty.min=1; qty.required=true; qty.value=1; qty.style.width='80px';
   const price = document.createElement('input'); price.type='number'; price.placeholder='Price'; price.style.width='120px'; price.required=true;
-  // when selection changes, populate price default from inventory cost
   select.addEventListener('change', ()=>{
     const sel = state.inventory.find(it=>it.id === select.value);
     price.value = sel ? sel.cost : 0;
     updateSaleTotal();
   });
-  // remove
   const rm = document.createElement('button'); rm.type='button'; rm.textContent='❌'; rm.onclick = ()=>{ div.remove(); updateSaleTotal(); };
-  // on qty or price change update total
   qty.addEventListener('input', updateSaleTotal);
   price.addEventListener('input', updateSaleTotal);
 
@@ -511,12 +579,12 @@ function addSaleItem(prefItemId){
   document.getElementById('saleItems').appendChild(div);
   updateSaleTotal();
 }
+
 function updateSaleTotal(){
   let total = 0;
   document.querySelectorAll('#saleItems div').forEach(div=>{
     const sel = div.querySelector('select'); const qty = Number(div.querySelector('input[type=number]').value||0);
     const inputs = div.querySelectorAll('input[type=number]');
-    // second number input is price (we appended price second)
     const price = Number(inputs[1].value||0);
     total += qty * price;
   });
@@ -532,10 +600,13 @@ document.getElementById('saleDiscountPct').addEventListener('input', updateSaleT
 
 document.getElementById('saleForm').addEventListener('submit', e=>{
   e.preventDefault();
+  const saleId = document.getElementById('saleId').value;
   const customer=document.getElementById('customerName').value;
+  const contact=document.getElementById('customerContact').value;
   const items=[];
   let total=0;
   let valid=true;
+  
   document.querySelectorAll('#saleItems div').forEach(div=>{
     const sel=div.querySelector('select'); const qty=Number(div.querySelector('input[type=number]').value||0);
     const price = Number(div.querySelectorAll('input[type=number]')[1].value||0);
@@ -551,17 +622,68 @@ document.getElementById('saleForm').addEventListener('submit', e=>{
     }
   });
   if(!valid) { alert('Please enter valid quantities'); return; }
+  
   const flat = Number(document.getElementById('saleDiscount').value||0);
   const pct = Number(document.getElementById('saleDiscountPct').value||0);
   const pctAmount = total * (pct/100);
   const final = Math.max(0, total - flat - pctAmount);
-  state.sales.push({id:idf(),date:new Date().toISOString().slice(0,10),customer,items,total:final, meta:{flatDiscount:flat, pctDiscount:pct}});
+  
+  const saleData = {id:saleId || idf(), date:new Date().toISOString().slice(0,10), customer, contact, items, total:final, meta:{flatDiscount:flat, pctDiscount:pct}, saved:false};
+  
+  if(saleId){
+    // Editing existing
+    const index = state.sales.findIndex(s => s.id === saleId);
+    if(index >= 0) state.sales[index] = saleData;
+  } else {
+    state.sales.push(saleData);
+  }
+  
   save(); renderSales(); renderInventory(); closeSaleModal();
 });
 
-/* deleteSale restores inventory qty optionally */
+function editSale(index){
+  const s = state.sales[index];
+  if(!s || s.saved) return alert('Cannot edit saved sales');
+  
+  document.getElementById('saleId').value = s.id;
+  document.getElementById('customerName').value = s.customer;
+  document.getElementById('customerContact').value = s.contact || '';
+  document.getElementById('saleDiscount').value = s.meta?.flatDiscount || 0;
+  document.getElementById('saleDiscountPct').value = s.meta?.pctDiscount || 0;
+  
+  document.getElementById('saleItems').innerHTML = '';
+  s.items.forEach(item => {
+    addSaleItem(item.id);
+    const lastDiv = document.getElementById('saleItems').lastChild;
+    const inputs = lastDiv.querySelectorAll('input[type=number]');
+    inputs[0].value = item.qty;
+    inputs[1].value = item.price;
+  });
+  
+  updateSaleTotal();
+  document.getElementById('saleModal').style.display='flex';
+}
+
 function deleteSale(id){
   if(!confirm('Delete this sale?')) return;
+  const sale = state.sales.find(s=>s.id===id);
+  if(sale && sale.saved) return alert('Cannot delete saved sales');
+  
+  if(sale && sale.items){
+    sale.items.forEach(it=>{
+      const inv = state.inventory.find(i=>i.id===it.id);
+      if(inv) inv.qty = Number(inv.qty) + Number(it.qty);
+    });
+  }
+  state.sales = state.sales.filter(s=>s.id!==id);
+  save(); renderSales(); renderRecords(); renderInventory();
+}
+
+function adminDeleteSale(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(!confirm('Admin delete this saved sale?')) return;
+  
   const sale = state.sales.find(s=>s.id===id);
   if(sale && sale.items){
     sale.items.forEach(it=>{
@@ -572,178 +694,521 @@ function deleteSale(id){
   state.sales = state.sales.filter(s=>s.id!==id);
   save(); renderSales(); renderRecords(); renderInventory();
 }
+
+function markSaleSaved(id){
+  const sale = state.sales.find(s => s.id === id);
+  if(sale) {
+    sale.saved = true;
+    save();
+    renderSales();
+  }
+}
+
 function printSale(id){
   const s=state.sales.find(s=>s.id===id);
   if(!s) return alert('Sale not found');
-  let html=`<h2>Receipt</h2><p>Customer: ${s.customer}<br>Date: ${s.date}</p><table border="1" style="width:100%;border-collapse:collapse;"><tr><th>Item</th><th>Qty</th><th>Price</th></tr>`;
-  s.items.forEach(i=>{html+=`<tr><td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price)}</td></tr>`});
-  html+=`</table><p>Total: ${fmt(s.total)}</p>`;
+  let html = companyHeaderHTML();
+  html += `<h3 style="text-align:center">Receipt</h3><p>Customer: ${s.customer}<br>Contact: ${s.contact}<br>Date: ${s.date}</p><table border="1" style="width:100%;border-collapse:collapse;"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>`;
+  s.items.forEach(i=>{html+=`<tr><td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price)}</td><td>${fmt(i.qty * i.price)}</td></tr>`});
+  html+=`</table><p><strong>Total: ${fmt(s.total)}</strong></p>`;
   const w=window.open(''); w.document.write(html); w.print();
 }
-function printSales(){const html='<h2>All Sales</h2>'+document.querySelector('#salesTable').outerHTML; const w=window.open(''); w.document.write(html); w.print();}
+
+function printSales(){
+  const html=companyHeaderHTML()+'<h3>All Sales</h3>'+document.querySelector('#salesTable').outerHTML; 
+  const w=window.open(''); w.document.write(html); w.print();
+}
 
 /* ===========================
-   INVENTORY (unchanged but rendered)
+   INVENTORY (with save status)
    =========================== */
 function renderInventory(){
   const tbody=document.querySelector('#inventoryTable tbody'); tbody.innerHTML='';
-  state.inventory.forEach(i=>{
+  state.inventory.forEach((item, index) => {
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${i.name}</td><td>${i.category||''}</td><td>${i.supplier||''}</td><td>${i.qty}</td><td>${fmt(i.cost)}</td><td>${i.reorder||''}</td>
+    const isSaved = item.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>' 
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${item.name}</td><td>${item.category||''}</td><td>${item.supplier||''}</td><td>${item.qty}</td><td>${fmt(item.cost)}</td><td>${item.reorder||''}</td><td>${statusBadge}</td>
       <td>
-        <button class="btn btn-primary" onclick="editInventory('${i.id}')">Edit</button>
-        <button class="btn btn-danger" onclick="deleteInventory('${i.id}')">Delete</button>
+        ${!isSaved ? `<button class="btn btn-primary small" onclick="editInventory(${index})">Edit</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteInventory('${item.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markInventorySaved('${item.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteInventory('${item.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
 }
+
 function openInventoryModal(){document.getElementById('inventoryForm').reset();document.getElementById('itemId').value='';document.getElementById('inventoryModal').style.display='flex';}
 function closeInventoryModal(){document.getElementById('inventoryModal').style.display='none';}
+
 document.getElementById('inventoryForm').addEventListener('submit', e=>{
   e.preventDefault();
-  const id=document.getElementById('itemId').value||idf();
+  const id=document.getElementById('itemId').value;
   const existing = state.inventory.find(i=>i.id===id);
   const created = existing ? existing.created : new Date().toISOString().slice(0,10);
-  const item={id:id,
+  const item={id: id || idf(),
     name:document.getElementById('itemName').value,
     category:document.getElementById('itemCategory').value,
     supplier:document.getElementById('itemSupplier').value,
     qty:Number(document.getElementById('itemQty').value),
     cost:Number(document.getElementById('itemCost').value),
     reorder:Number(document.getElementById('itemReorder').value),
-    created
+    created,
+    saved: false
   };
-  const index=state.inventory.findIndex(i=>i.id===id);
-  if(index>=0) state.inventory[index]=item; else state.inventory.push(item);
+  
+  if(id){
+    const index=state.inventory.findIndex(i=>i.id===id);
+    if(index >= 0) state.inventory[index] = item;
+  } else {
+    state.inventory.push(item);
+  }
   save(); renderInventory(); closeInventoryModal();
 });
-function editInventory(id){const i=state.inventory.find(i=>i.id===id); if(!i) return; document.getElementById('itemId').value=i.id; document.getElementById('itemName').value=i.name; document.getElementById('itemCategory').value=i.category; document.getElementById('itemSupplier').value=i.supplier; document.getElementById('itemQty').value=i.qty; document.getElementById('itemCost').value=i.cost; document.getElementById('itemReorder').value=i.reorder; document.getElementById('inventoryModal').style.display='flex';}
-function deleteInventory(id){if(confirm('Delete this item?')){state.inventory=state.inventory.filter(i=>i.id!==id);save();renderInventory();renderRecords();} }
-function printInventory(){const html='<h2>Inventory</h2>'+document.querySelector('#inventoryTable').outerHTML; const w=window.open(''); w.document.write(html); w.print();}
+
+function editInventory(index){
+  const i = state.inventory[index];
+  if(!i || i.saved) return alert('Cannot edit saved items');
+  
+  document.getElementById('itemId').value=i.id;
+  document.getElementById('itemName').value=i.name;
+  document.getElementById('itemCategory').value=i.category||'';
+  document.getElementById('itemSupplier').value=i.supplier||'';
+  document.getElementById('itemQty').value=i.qty;
+  document.getElementById('itemCost').value=i.cost;
+  document.getElementById('itemReorder').value=i.reorder||5;
+  document.getElementById('inventoryModal').style.display='flex';
+}
+
+function deleteInventory(id){
+  const item = state.inventory.find(i=>i.id===id);
+  if(item && item.saved) return alert('Cannot delete saved items');
+  if(confirm('Delete this item?')){
+    state.inventory=state.inventory.filter(i=>i.id!==id);
+    save();renderInventory();renderRecords();
+  }
+}
+
+function adminDeleteInventory(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(confirm('Admin delete this saved item?')){
+    state.inventory=state.inventory.filter(i=>i.id!==id);
+    save();renderInventory();renderRecords();
+  }
+}
+
+function markInventorySaved(id){
+  const item = state.inventory.find(i => i.id === id);
+  if(item) {
+    item.saved = true;
+    save();
+    renderInventory();
+  }
+}
+
+function printInventory(){
+  const html=companyHeaderHTML()+'<h3>Inventory Report</h3>'+document.querySelector('#inventoryTable').outerHTML; 
+  const w=window.open(''); w.document.write(html); w.print();
+}
 
 /* ===========================
-   EXPENSES
+   EXPENSES (with save status)
    =========================== */
 function renderExpenses(){
   const tbody=document.querySelector('#expensesTable tbody'); tbody.innerHTML='';
   let total=0;
-  state.expenses.forEach(e=>{
+  state.expenses.forEach((e, index) => {
     total+=Number(e.amount);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td><td>${e.paidBy||''}</td><td>${e.notes||''}</td>
-      <td><button class="btn btn-danger" onclick="deleteExpense('${e.id}')">Delete</button></td>`;
+    const isSaved = e.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>' 
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td><td>${statusBadge}</td>
+      <td>
+        ${!isSaved ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markExpenseSaved('${e.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteExpense('${e.id}')">Admin Delete</button>` : ''}
+      </td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('expenseTotal').innerText='Total: '+fmt(total);
 }
-function openExpenseModal(){document.getElementById('expenseForm').reset();document.getElementById('expenseModal').style.display='flex';}
+
+function openExpenseModal(){document.getElementById('expenseForm').reset();document.getElementById('expenseId').value='';document.getElementById('expenseModal').style.display='flex';}
 function closeExpenseModal(){document.getElementById('expenseModal').style.display='none';}
+
 document.getElementById('expenseForm').addEventListener('submit', e=>{
   e.preventDefault();
-  const exp={id:idf(),date:document.getElementById('expenseDate').value,category:document.getElementById('expenseCategory').value,description:document.getElementById('expenseDesc').value,amount:Number(document.getElementById('expenseAmount').value)};
-  state.expenses.push(exp); save(); renderExpenses(); renderRecords(); closeExpenseModal();
+  const id = document.getElementById('expenseId').value;
+  const exp={id: id || idf(), date:document.getElementById('expenseDate').value, category:document.getElementById('expenseCategory').value, description:document.getElementById('expenseDesc').value, amount:Number(document.getElementById('expenseAmount').value), saved: false};
+  
+  if(id){
+    const index = state.expenses.findIndex(e => e.id === id);
+    if(index >= 0) state.expenses[index] = exp;
+  } else {
+    state.expenses.push(exp);
+  }
+  save(); renderExpenses(); renderRecords(); closeExpenseModal();
 });
-function deleteExpense(id){if(!confirm('Delete this expense?')) return; state.expenses=state.expenses.filter(e=>e.id!==id); save(); renderExpenses(); renderRecords();}
+
+function editExpense(index){
+  const e = state.expenses[index];
+  if(!e || e.saved) return alert('Cannot edit saved expenses');
+  
+  document.getElementById('expenseId').value = e.id;
+  document.getElementById('expenseDate').value = e.date;
+  document.getElementById('expenseCategory').value = e.category;
+  document.getElementById('expenseDesc').value = e.description;
+  document.getElementById('expenseAmount').value = e.amount;
+  document.getElementById('expenseModal').style.display='flex';
+}
+
+function deleteExpense(id){
+  const expense = state.expenses.find(e=>e.id===id);
+  if(expense && expense.saved) return alert('Cannot delete saved expenses');
+  if(!confirm('Delete this expense?')) return;
+  state.expenses=state.expenses.filter(e=>e.id!==id);
+  save(); renderExpenses(); renderRecords();
+}
+
+function adminDeleteExpense(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(!confirm('Admin delete this saved expense?')) return;
+  state.expenses=state.expenses.filter(e=>e.id!==id);
+  save(); renderExpenses(); renderRecords();
+}
+
+function markExpenseSaved(id){
+  const expense = state.expenses.find(e => e.id === id);
+  if(expense) {
+    expense.saved = true;
+    save();
+    renderExpenses();
+  }
+}
+
 function searchExpenses(){
   const from=document.getElementById('expenseFrom').value; const to=document.getElementById('expenseTo').value;
   const tbody=document.querySelector('#expensesTable tbody'); tbody.innerHTML='';
   let total=0;
-  state.expenses.filter(e=>(!from || e.date>=from) && (!to || e.date<=to)).forEach(e=>{
+  state.expenses.filter(e=>(!from || e.date>=from) && (!to || e.date<=to)).forEach((e, index) => {
     total+=Number(e.amount);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td><td>${e.paidBy||''}</td><td>${e.notes||''}</td>
-      <td><button class="btn btn-danger" onclick="deleteExpense('${e.id}')">Delete</button></td>`;
+    const isSaved = e.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>' 
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    
+    tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td><td>${statusBadge}</td>
+      <td>
+        ${!isSaved ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markExpenseSaved('${e.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteExpense('${e.id}')">Admin Delete</button>` : ''}
+      </td>`;
     tbody.appendChild(tr);
   });
   document.getElementById('expenseTotal').innerText='Total: '+fmt(total);
 }
-function printExpenses(){const html='<h2>Expenses</h2>'+document.querySelector('#expensesTable').outerHTML; const w=window.open(''); w.document.write(html); w.print();}
+
+function printExpenses(){
+  const html=companyHeaderHTML()+'<h3>Expenses Report</h3>'+document.querySelector('#expensesTable').outerHTML; 
+  const w=window.open(''); w.document.write(html); w.print();
+}
 
 /* ===========================
-   EMPLOYEES
+   EMPLOYEES (with save status)
    =========================== */
 function renderEmployees(){
   const tbody=document.querySelector('#employeesTable tbody'); tbody.innerHTML='';
-  state.employees.forEach(e=>{
+  state.employees.forEach((e, index) => {
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${e.name}</td><td>${e.position}</td><td>${e.email}</td><td>${e.phone}</td>
+    const isSaved = e.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>' 
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${e.name}</td><td>${e.position||''}</td><td>${e.email||''}</td><td>${e.phone||''}</td><td>${statusBadge}</td>
       <td>
-        <button class="btn btn-primary" onclick="editEmployee('${e.id}')">Edit</button>
-        <button class="btn btn-danger" onclick="deleteEmployee('${e.id}')">Delete</button>
+        ${!isSaved ? `<button class="btn btn-primary small" onclick="editEmployee(${index})">Edit</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteEmployee('${e.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markEmployeeSaved('${e.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteEmployee('${e.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
 }
+
 function openEmployeeModal(){document.getElementById('employeeForm').reset();document.getElementById('employeeId').value='';document.getElementById('employeeModal').style.display='flex';}
 function closeEmployeeModal(){document.getElementById('employeeModal').style.display='none';}
+
 document.getElementById('employeeForm').addEventListener('submit', e=>{
   e.preventDefault();
-  const id=document.getElementById('employeeId').value||idf();
-  const emp={id:id,name:document.getElementById('employeeName').value,position:document.getElementById('employeePosition').value,email:document.getElementById('employeeEmail').value,phone:document.getElementById('employeePhone').value};
-  const index=state.employees.findIndex(x=>x.id===id);
-  if(index>=0) state.employees[index]=emp; else state.employees.push(emp);
+  const id=document.getElementById('employeeId').value;
+  const emp={id: id || idf(), name:document.getElementById('employeeName').value, position:document.getElementById('employeePosition').value, email:document.getElementById('employeeEmail').value, phone:document.getElementById('employeePhone').value, saved: false};
+  
+  if(id){
+    const index=state.employees.findIndex(x=>x.id===id);
+    if(index >= 0) state.employees[index]=emp;
+  } else {
+    state.employees.push(emp);
+  }
   save(); renderEmployees(); closeEmployeeModal();
 });
-function editEmployee(id){const e=state.employees.find(e=>e.id===id); document.getElementById('employeeId').value=e.id; document.getElementById('employeeName').value=e.name; document.getElementById('employeePosition').value=e.position; document.getElementById('employeeEmail').value=e.email; document.getElementById('employeePhone').value=e.phone; document.getElementById('employeeModal').style.display='flex';}
-function deleteEmployee(id){if(confirm('Delete employee?')){state.employees=state.employees.filter(e=>e.id!==id);save();renderEmployees();} }
-function printEmployees(){const html='<h2>Employees</h2>'+document.querySelector('#employeesTable').outerHTML; const w=window.open(''); w.document.write(html); w.print();}
+
+function editEmployee(index){
+  const e = state.employees[index];
+  if(!e || e.saved) return alert('Cannot edit saved employees');
+  
+  document.getElementById('employeeId').value=e.id;
+  document.getElementById('employeeName').value=e.name;
+  document.getElementById('employeePosition').value=e.position||'';
+  document.getElementById('employeeEmail').value=e.email||'';
+  document.getElementById('employeePhone').value=e.phone||'';
+  document.getElementById('employeeModal').style.display='flex';
+}
+
+function deleteEmployee(id){
+  const emp = state.employees.find(e=>e.id===id);
+  if(emp && emp.saved) return alert('Cannot delete saved employees');
+  if(confirm('Delete employee?')){
+    state.employees=state.employees.filter(e=>e.id!==id);
+    save();renderEmployees();
+  }
+}
+
+function adminDeleteEmployee(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(confirm('Admin delete this saved employee?')){
+    state.employees=state.employees.filter(e=>e.id!==id);
+    save();renderEmployees();
+  }
+}
+
+function markEmployeeSaved(id){
+  const emp = state.employees.find(e => e.id === id);
+  if(emp) {
+    emp.saved = true;
+    save();
+    renderEmployees();
+  }
+}
+
+function printEmployees(){
+  const html=companyHeaderHTML()+'<h3>Employees Report</h3>'+document.querySelector('#employeesTable').outerHTML; 
+  const w=window.open(''); w.document.write(html); w.print();
+}
 
 /* ===========================
-   SUPPLIERS
+   SUPPLIERS (with save status)
    =========================== */
 function renderSuppliers(){
   const tbody=document.querySelector('#suppliersTable tbody'); tbody.innerHTML='';
-  state.suppliers.forEach(s=>{
+  state.suppliers.forEach((s, index) => {
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${s.name}</td><td>${s.contact}</td><td>${s.email}</td>
+    const isSaved = s.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>' 
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${s.name}</td><td>${s.contact||''}</td><td>${s.email||''}</td><td>${statusBadge}</td>
       <td>
-        <button class="btn btn-primary" onclick="editSupplier('${s.id}')">Edit</button>
-        <button class="btn btn-danger" onclick="deleteSupplier('${s.id}')">Delete</button>
+        ${!isSaved ? `<button class="btn btn-primary small" onclick="editSupplier(${index})">Edit</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteSupplier('${s.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markSupplierSaved('${s.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteSupplier('${s.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
 }
+
 function openSupplierModal(){document.getElementById('supplierForm').reset();document.getElementById('supplierId').value='';document.getElementById('supplierModal').style.display='flex';}
 function closeSupplierModal(){document.getElementById('supplierModal').style.display='none';}
+
 document.getElementById('supplierForm').addEventListener('submit', e=>{
   e.preventDefault();
-  const id=document.getElementById('supplierId').value||idf();
-  const sup={id:id,name:document.getElementById('supplierName').value,contact:document.getElementById('supplierContact').value,email:document.getElementById('supplierEmail').value};
-  const index=state.suppliers.findIndex(x=>x.id===id);
-  if(index>=0) state.suppliers[index]=sup; else state.suppliers.push(sup);
+  const id=document.getElementById('supplierId').value;
+  const sup={id: id || idf(), name:document.getElementById('supplierName').value, contact:document.getElementById('supplierContact').value, email:document.getElementById('supplierEmail').value, saved: false};
+  
+  if(id){
+    const index=state.suppliers.findIndex(x=>x.id===id);
+    if(index >= 0) state.suppliers[index]=sup;
+  } else {
+    state.suppliers.push(sup);
+  }
   save(); renderSuppliers(); closeSupplierModal();
 });
-function editSupplier(id){const s=state.suppliers.find(s=>s.id===id); document.getElementById('supplierId').value=s.id; document.getElementById('supplierName').value=s.name; document.getElementById('supplierContact').value=s.contact; document.getElementById('supplierEmail').value=s.email; document.getElementById('supplierModal').style.display='flex';}
-function deleteSupplier(id){if(confirm('Delete supplier?')){state.suppliers=state.suppliers.filter(s=>s.id!==id);save();renderSuppliers();} }
-function printSuppliers(){const html='<h2>Suppliers</h2>'+document.querySelector('#suppliersTable').outerHTML; const w=window.open(''); w.document.write(html); w.print();}
+
+function editSupplier(index){
+  const s = state.suppliers[index];
+  if(!s || s.saved) return alert('Cannot edit saved suppliers');
+  
+  document.getElementById('supplierId').value=s.id;
+  document.getElementById('supplierName').value=s.name;
+  document.getElementById('supplierContact').value=s.contact||'';
+  document.getElementById('supplierEmail').value=s.email||'';
+  document.getElementById('supplierModal').style.display='flex';
+}
+
+function deleteSupplier(id){
+  const sup = state.suppliers.find(s=>s.id===id);
+  if(sup && sup.saved) return alert('Cannot delete saved suppliers');
+  if(confirm('Delete supplier?')){
+    state.suppliers=state.suppliers.filter(s=>s.id!==id);
+    save();renderSuppliers();
+  }
+}
+
+function adminDeleteSupplier(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(confirm('Admin delete this saved supplier?')){
+    state.suppliers=state.suppliers.filter(s=>s.id!==id);
+    save();renderSuppliers();
+  }
+}
+
+function markSupplierSaved(id){
+  const sup = state.suppliers.find(s => s.id === id);
+  if(sup) {
+    sup.saved = true;
+    save();
+    renderSuppliers();
+  }
+}
+
+function printSuppliers(){
+  const html=companyHeaderHTML()+'<h3>Suppliers Report</h3>'+document.querySelector('#suppliersTable').outerHTML; 
+  const w=window.open(''); w.document.write(html); w.print();
+}
 
 /* ===========================
-   DEPOSITS
+   DEPOSITS (enhanced with item tracking and automated balance)
    =========================== */
 function renderDeposits(){
   const tbody=document.querySelector('#depositsTable tbody'); tbody.innerHTML='';
-  state.deposits.forEach(d=>{
+  state.deposits.forEach((d, index) => {
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${fmt(d.amount)}</td><td>${fmt(d.balance||d.amount)}</td>
+    const isSaved = d.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>' 
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    const remainingBalance = Number(d.amount) - Number(d.used || 0);
+    
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${d.item || 'N/A'}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
       <td>
-        <button class="btn btn-secondary" onclick="printDeposit('${d.id}')">🖨️ Receipt</button>
-        <button class="btn btn-danger" onclick="deleteDeposit('${d.id}')">Delete</button>
+        <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
+        ${!isSaved ? `<button class="btn btn-primary small" onclick="editDeposit(${index})">Edit</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markDepositSaved('${d.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteDeposit('${d.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
 }
-function openDepositModal(){document.getElementById('depositForm').reset();document.getElementById('depositId').value='';document.getElementById('depositModal').style.display='flex';}
+
+function openDepositModal(){
+  document.getElementById('depositForm').reset();
+  document.getElementById('depositId').value='';
+  document.getElementById('depositDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('depositModal').style.display='flex';
+}
 function closeDepositModal(){document.getElementById('depositModal').style.display='none';}
+
 document.getElementById('depositForm').addEventListener('submit', e=>{
   e.preventDefault();
-  const id=document.getElementById('depositId').value||idf();
-  const dep={id:id,date:document.getElementById('depositDate').value,client:document.getElementById('depositClient').value,amount:Number(document.getElementById('depositAmount').value),balance:Number(document.getElementById('depositBalance').value||0)};
-  const index=state.deposits.findIndex(x=>x.id===id);
-  if(index>=0) state.deposits[index]=dep; else state.deposits.push(dep);
+  const id=document.getElementById('depositId').value;
+  const amount = Number(document.getElementById('depositAmount').value);
+  const used = Number(document.getElementById('depositUsed').value || 0);
+  
+  const dep={
+    id: id || idf(),
+    date:document.getElementById('depositDate').value,
+    client:document.getElementById('depositClient').value,
+    item:document.getElementById('depositItem').value,
+    amount: amount,
+    used: used,
+    remainingBalance: amount - used,
+    saved: false
+  };
+  
+  if(id){
+    const index=state.deposits.findIndex(x=>x.id===id);
+    if(index >= 0) state.deposits[index]=dep;
+  } else {
+    state.deposits.push(dep);
+  }
   save(); renderDeposits(); renderRecords(); closeDepositModal();
 });
-function deleteDeposit(id){if(confirm('Delete deposit?')){state.deposits=state.deposits.filter(d=>d.id!==id);save();renderDeposits();renderRecords();} }
-function printDeposit(id){const d=state.deposits.find(d=>d.id===id); if(!d) return; let html=`<h2>Deposit Receipt</h2><p>Client: ${d.client}<br>Date: ${d.date}</p><p>Amount: ${fmt(d.amount)}<br>Balance: ${fmt(d.balance)}</p>`; const w=window.open(''); w.document.write(html); w.print();}
+
+function editDeposit(index){
+  const d = state.deposits[index];
+  if(!d || d.saved) return alert('Cannot edit saved deposits');
+  
+  document.getElementById('depositId').value = d.id;
+  document.getElementById('depositDate').value = d.date;
+  document.getElementById('depositClient').value = d.client;
+  document.getElementById('depositItem').value = d.item || '';
+  document.getElementById('depositAmount').value = d.amount;
+  document.getElementById('depositUsed').value = d.used || 0;
+  document.getElementById('depositModal').style.display='flex';
+}
+
+function deleteDeposit(id){
+  const dep = state.deposits.find(d=>d.id===id);
+  if(dep && dep.saved) return alert('Cannot delete saved deposits');
+  if(confirm('Delete deposit?')){
+    state.deposits=state.deposits.filter(d=>d.id!==id);
+    save();renderDeposits();renderRecords();
+  }
+}
+
+function adminDeleteDeposit(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(confirm('Admin delete this saved deposit?')){
+    state.deposits=state.deposits.filter(d=>d.id!==id);
+    save();renderDeposits();renderRecords();
+  }
+}
+
+function markDepositSaved(id){
+  const dep = state.deposits.find(d => d.id === id);
+  if(dep) {
+    dep.saved = true;
+    save();
+    renderDeposits();
+  }
+}
+
+function printDeposit(id){
+  const d=state.deposits.find(d=>d.id===id);
+  if(!d) return alert('Deposit not found');
+  let html = companyHeaderHTML();
+  html += `<h3 style="text-align:center">Deposit Receipt</h3>`;
+  html += `<p>Client: ${d.client}<br>Date: ${d.date}</p>`;
+  html += `<p>Item Deposited On: ${d.item || 'N/A'}</p>`;
+  html += `<table border="1" style="width:100%;border-collapse:collapse;">`;
+  html += `<tr><th>Initial Amount</th><td>${fmt(d.amount)}</td></tr>`;
+  html += `<tr><th>Amount Used</th><td>${fmt(d.used || 0)}</td></tr>`;
+  html += `<tr><th>Remaining Balance</th><td>${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}</td></tr>`;
+  html += `</table>`;
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+function printDeposits(){
+  const html=companyHeaderHTML()+'<h3>Deposits Report</h3>'+document.querySelector('#depositsTable').outerHTML; 
+  const w=window.open(''); w.document.write(html); w.print();
+}
 
 /* ===========================
    RECORDS (with pagination + filters)
@@ -758,7 +1223,7 @@ function buildRecordsArray(){
       ref: s.id,
       details: `Customer: ${s.customer}`,
       amount: s.total,
-      meta: s.items.map(i=>`${i.name} x${i.qty}`).join(', ')
+      meta: s.items ? s.items.map(i=>`${i.name} x${i.qty}`).join(', ') : 'No items'
     });
   });
   // Expenses
@@ -789,9 +1254,9 @@ function buildRecordsArray(){
       type: 'Deposit',
       date: d.date,
       ref: d.id,
-      details: `Client: ${d.client}`,
+      details: `Client: ${d.client}, Item: ${d.item || 'N/A'}`,
       amount: d.amount,
-      meta: `Balance: ${fmt(d.balance||0)}`
+      meta: `Used: ${fmt(d.used || 0)}, Remaining: ${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}`
     });
   });
   // Sort desc by date
@@ -803,14 +1268,11 @@ let recordsPage = 1;
 function renderRecords(list){
   const tbody=document.querySelector('#recordsTable tbody'); tbody.innerHTML='';
   const rowsAll = list || buildRecordsArray();
-  // apply type/text filters from inputs if list not provided
   let rows = rowsAll;
-  // apply UI filters if searchRecords was not used
   const typeFilter = document.getElementById('recordsType') ? document.getElementById('recordsType').value : '';
   const textFilter = document.getElementById('recordsText') ? document.getElementById('recordsText').value.toLowerCase() : '';
   if(typeFilter) rows = rows.filter(r=>r.type === typeFilter);
   if(textFilter) rows = rows.filter(r=> (r.details+' '+r.ref+' '+r.meta).toLowerCase().includes(textFilter));
-  // date range
   const from=document.getElementById('recordsFrom') ? document.getElementById('recordsFrom').value : '';
   const to=document.getElementById('recordsTo') ? document.getElementById('recordsTo').value : '';
   rows = rows.filter(r=> (!from || r.date >= from) && (!to || r.date <= to));
@@ -830,11 +1292,11 @@ function renderRecords(list){
     else { amountDisplay = r.amount; totalQty += Number(r.amount||0); }
     tr.innerHTML = `<td>${r.type}</td><td>${r.date}</td><td>${r.ref}</td><td>${r.details}<div style="font-size:0.9em;color:#cbd5e1;margin-top:4px">${r.meta||''}</div></td><td>${amountDisplay}</td>
       <td>
-        ${r.type === 'Sale' ? `<button class="btn btn-secondary" onclick="printSale('${r.ref}')">🖨️</button>` : ''}
-        ${r.type === 'Expense' ? `<button class="btn btn-secondary" onclick="printExpense('${r.ref}')">🖨️</button>` : ''}
-        ${r.type === 'Inventory' ? `<button class="btn btn-secondary" onclick="printInventoryItem('${r.ref}')">🖨️</button>` : ''}
-        ${r.type === 'Deposit' ? `<button class="btn btn-secondary" onclick="printDeposit('${r.ref}')">🖨️</button>` : ''}
-        <button class="btn btn-danger" onclick="deleteRecord('${r.type}','${r.ref}')">Delete</button>
+        ${r.type === 'Sale' ? `<button class="btn btn-secondary small" onclick="printSale('${r.ref}')">🖨️</button>` : ''}
+        ${r.type === 'Expense' ? `<button class="btn btn-secondary small" onclick="printExpense('${r.ref}')">🖨️</button>` : ''}
+        ${r.type === 'Inventory' ? `<button class="btn btn-secondary small" onclick="printInventoryItem('${r.ref}')">🖨️</button>` : ''}
+        ${r.type === 'Deposit' ? `<button class="btn btn-secondary small" onclick="printDeposit('${r.ref}')">🖨️</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' ? `<button class="btn btn-danger small" onclick="adminDeleteRecord('${r.type}','${r.ref}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -842,33 +1304,39 @@ function renderRecords(list){
   document.getElementById('recordsSummary').innerText = summary;
   document.getElementById('recordsPagerInfo').innerText = `Page ${recordsPage} / ${totalPages}`;
 }
-function searchRecords(){
-  recordsPage = 1;
-  renderRecords();
-}
+
+function searchRecords(){ recordsPage = 1; renderRecords(); }
 function printRecords(){
-  const html='<h2>Company Records (current page)</h2>'+document.querySelector('#recordsTable').outerHTML;
+  const html=companyHeaderHTML()+'<h3>Company Records (current page)</h3>'+document.querySelector('#recordsTable').outerHTML;
   const w=window.open(''); w.document.write(html); w.print();
 }
-function deleteRecord(type, ref){
-  // permission check
+
+function adminDeleteRecord(type, ref){
   const user = currentUser();
-  if(!user){ alert('must be logged in'); return; }
-  if(!confirm(`Delete this ${type}?`)) return;
-  if(type === 'Sale') deleteSale(ref);
-  else if(type === 'Expense') deleteExpense(ref);
-  else if(type === 'Inventory') deleteInventory(ref);
-  else if(type === 'Deposit') deleteDeposit(ref);
+  if(!user || user.role !== 'admin'){ alert('Admin access required'); return; }
+  if(!confirm(`Admin delete this ${type}?`)) return;
+  if(type === 'Sale') adminDeleteSale(ref);
+  else if(type === 'Expense') adminDeleteExpense(ref);
+  else if(type === 'Inventory') adminDeleteInventory(ref);
+  else if(type === 'Deposit') adminDeleteDeposit(ref);
   renderAll();
 }
+
 /* helper prints */
 function printExpense(id){
-  const e = state.expenses.find(x=>x.id===id); if(!e) return alert('Expense not found');
-  const w=window.open(''); w.document.write(`<h2>Expense</h2><p>${e.date}</p><p>${e.category} - ${e.description}</p><p>Amount: ${fmt(e.amount)}</p>`); w.print();
+  const e = state.expenses.find(x=>x.id===id); 
+  if(!e) return alert('Expense not found');
+  let html = companyHeaderHTML();
+  html += `<h3>Expense Receipt</h3><p>${e.date}</p><p>${e.category} - ${e.description}</p><p>Amount: ${fmt(e.amount)}</p>`;
+  const w=window.open(''); w.document.write(html); w.print();
 }
+
 function printInventoryItem(id){
-  const i=state.inventory.find(x=>x.id===id); if(!i) return alert('Not found');
-  const w=window.open(''); w.document.write(`<h2>Inventory Item</h2><p>${i.name}</p><p>Qty: ${i.qty}</p><p>Cost: ${fmt(i.cost)}</p>`); w.print();
+  const i=state.inventory.find(x=>x.id===id); 
+  if(!i) return alert('Item not found');
+  let html = companyHeaderHTML();
+  html += `<h3>Inventory Item</h3><p>${i.name}</p><p>Category: ${i.category||'N/A'}</p><p>Qty: ${i.qty}</p><p>Cost: ${fmt(i.cost)}</p>`;
+  const w=window.open(''); w.document.write(html); w.print();
 }
 
 /* pagination helpers */
@@ -879,8 +1347,14 @@ function recordsJump(){ const v = Number(document.getElementById('recordsGoto').
 /* ===========================
    USERS / SETTINGS (admin only)
    =========================== */
-function openUserModal(){ document.getElementById('userForm').reset(); document.getElementById('userId').value=''; populateUsersList(); document.getElementById('userModal').style.display='flex'; }
+function openUserModal(){
+  document.getElementById('userForm').reset();
+  document.getElementById('userId').value='';
+  populateUsersList();
+  document.getElementById('userModal').style.display='flex';
+}
 function closeUserModal(){ document.getElementById('userModal').style.display='none'; }
+
 function populateUsersList(){
   const el = document.getElementById('usersList'); el.innerHTML='';
   state.users.forEach(u=>{
@@ -894,6 +1368,7 @@ function populateUsersList(){
     el.appendChild(div);
   });
 }
+
 function editUser(id){
   const u = state.users.find(x=>x.id===id); if(!u) return;
   document.getElementById('userId').value = u.id;
@@ -904,6 +1379,7 @@ function editUser(id){
   document.getElementById('userCanCreateSales').checked = (u.canCreateSales !== false);
   document.getElementById('userModal').style.display = 'flex';
 }
+
 document.getElementById('userForm').addEventListener('submit', e=>{
   e.preventDefault();
   const id = document.getElementById('userId').value || idf();
@@ -912,7 +1388,6 @@ document.getElementById('userForm').addEventListener('submit', e=>{
   const role = document.getElementById('userRole').value;
   const canViewRecords = document.getElementById('userCanViewRecords').checked;
   const canCreateSales = document.getElementById('userCanCreateSales').checked;
-  // avoid duplicate username
   if(state.users.some(u=>u.username === username && u.id !== id)){ alert('Username already exists'); return; }
   const existingIndex = state.users.findIndex(u=>u.id===id);
   const userObj = {id, username, password, role, canViewRecords, canCreateSales};
@@ -920,13 +1395,42 @@ document.getElementById('userForm').addEventListener('submit', e=>{
   save(); populateUsersList(); closeUserModal();
 });
 
+/* ===========================
+   COMPANY SETTINGS
+   =========================== */
+document.getElementById('companyForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  state.company = {
+    name: document.getElementById('companyName').value,
+    location: document.getElementById('companyLocation').value,
+    box: document.getElementById('companyBox').value,
+    tel: document.getElementById('companyTel').value,
+    email: document.getElementById('companyEmail').value
+  };
+  save(); 
+  alert('Company details saved successfully!');
+});
+
 /* SETTINGS area render (Admin-only) */
 function renderSettingsAdmin(){
   const container = document.getElementById('settingsAdminArea'); container.innerHTML='';
   const user = currentUser();
-  if(!user || user.role !== 'admin'){ container.innerHTML = '<p class="muted">Only admin can manage users.</p>'; return; }
+  if(!user || user.role !== 'admin'){ 
+    container.innerHTML = '<p class="muted">Only admin can manage users and company settings.</p>'; 
+    return; 
+  }
+  container.innerHTML = '<p>Configure system preferences here. (Admin only: manage users)</p>';
   const btn = document.createElement('button'); btn.className='btn btn-primary'; btn.textContent='Manage Users'; btn.onclick = openUserModal;
   container.appendChild(btn);
+  
+  // Load company settings
+  if(state.company){
+    document.getElementById('companyName').value = state.company.name || '';
+    document.getElementById('companyLocation').value = state.company.location || '';
+    document.getElementById('companyBox').value = state.company.box || '';
+    document.getElementById('companyTel').value = state.company.tel || '';
+    document.getElementById('companyEmail').value = state.company.email || '';
+  }
 }
 
 /* ===========================
@@ -936,10 +1440,8 @@ function updateUIForAuth(){
   const user = currentUser();
   document.getElementById('currentUserDisplay').innerText = user ? `Signed in as: ${user.username} (${user.role})` : 'Not signed in';
   document.getElementById('systemStatus').innerText = user ? 'Online' : 'Offline';
-  // hide/show new sale button based on permission
   const newSaleBtn = document.getElementById('newSaleBtn');
   if(newSaleBtn) newSaleBtn.disabled = !(user && user.canCreateSales);
-  // hide settings admin area / show manage users
   renderSettingsAdmin();
   // restrict nav items visibility
   document.querySelectorAll("#navList .nav-item").forEach(nav=>{
@@ -949,13 +1451,12 @@ function updateUIForAuth(){
       nav.style.display = 'flex';
     }
   });
-  // show login modal if not logged in
   if(!user) showLogin(); else hideLogin();
-  // quick actions
   const qa = document.getElementById('quickUserActions'); qa.innerHTML='';
   if(user){
-    const manageBtn = document.createElement('button'); manageBtn.className='btn small'; manageBtn.textContent='My Profile'; manageBtn.onclick = ()=>{ alert('Profile: '+user.username); };
-    qa.appendChild(manageBtn);
+    const profileBtn = document.createElement('button'); profileBtn.className='btn small'; profileBtn.textContent='Profile'; 
+    profileBtn.onclick = ()=>{ alert(`Profile: ${user.username} (${user.role})\nRecords Access: ${user.canViewRecords ? 'Yes' : 'No'}\nSales Creation: ${user.canCreateSales ? 'Yes' : 'No'}`); };
+    qa.appendChild(profileBtn);
   }
 }
 
@@ -963,23 +1464,21 @@ function updateUIForAuth(){
    RENDER ALL (initial)
    =========================== */
 function renderAll(){
-  renderSales(); renderInventory(); renderExpenses(); renderEmployees(); renderSuppliers(); renderDeposits(); renderRecords(); renderSettingsAdmin();
+  renderSales(); 
+  renderInventory(); 
+  renderExpenses(); 
+  renderEmployees(); 
+  renderSuppliers(); 
+  renderDeposits(); 
+  renderRecords(); 
+  renderSettingsAdmin();
   updateUIForAuth();
+  updateDashboard();
 }
+
+// Initialize
 renderAll();
-
-/* ===========================
-   STARTUP: show login if not auth
-   =========================== */
 if(!currentUser()) showLogin(); else hideLogin();
-
-/* ===========================
-   Misc helper prints used earlier
-   =========================== */
-function printEmployees(){const html='<h2>Employees</h2>'+document.querySelector('#employeesTable').outerHTML; const w=window.open(''); w.document.write(html); w.print();}
-function printSuppliers(){const html='<h2>Suppliers</h2>'+document.querySelector('#suppliersTable').outerHTML; const w=window.open(''); w.document.write(html); w.print();}
-function printDeposits(){const html='<h2>Deposits</h2>'+document.querySelector('#depositsTable').outerHTML; const w=window.open(''); w.document.write(html); w.print();}
-
 </script>
 </body>
 </html>
