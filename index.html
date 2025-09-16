@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sales System — All-in-One (with Auth & Users)</title>
+  <title>Sales System — All-in-One (with Admin Access Control)</title>
   <style>
     :root{
       --bg1:#0f2027; --bg2:#203a43; --bg3:#2c5364;
@@ -21,6 +21,7 @@
     .logo h1{font-size:1.1em;margin:0;}
     .nav-item{padding:10px;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;gap:10px;}
     .nav-item:hover,.nav-item.active{background:var(--accent);color:#fff;}
+    .nav-item.disabled{opacity:0.5;cursor:not-allowed;background:rgba(100,100,100,0.3)!important;}
     .main{flex:1;padding:20px;overflow:auto;}
     .card{background:var(--card);padding:20px;border-radius:var(--radius);margin-bottom:20px;box-shadow:0 4px 8px rgba(0,0,0,0.2);}
     .table{width:100%;border-collapse:collapse;}
@@ -43,6 +44,8 @@
     .disabled{opacity:0.5;pointer-events:none;}
     label.inline{display:inline-block;margin-right:8px;}
     .paging{display:flex;gap:6px;align-items:center;}
+    .permission-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0;}
+    .permission-item{background:#f8f9fa;padding:10px;border-radius:8px;display:flex;align-items:center;gap:8px;}
     @media(max-width:768px){
       .sidebar{width:70px;padding:10px;}
       .sidebar .logo h1,.sidebar .nav-item div{display:none;}
@@ -104,6 +107,13 @@
           <div style="font-size:2em;color:#f59e0b;" id="dashTotalDeposits">UGX 0</div>
         </div>
       </div>
+    </section>
+
+    <!-- Access Denied Message -->
+    <section id="accessDenied" class="view card" style="display:none">
+      <h2>Access Denied</h2>
+      <p style="color:#ef4444;">You do not have permission to access this section. Please contact your administrator for access.</p>
+      <p class="muted">Your current permissions are managed by the system administrator.</p>
     </section>
 
     <!-- Sales -->
@@ -291,9 +301,60 @@
         <option value="user">User</option>
         <option value="admin">Admin</option>
       </select>
-      <label><input type="checkbox" id="userCanViewRecords" /> Allow access to Records</label>
-      <label><input type="checkbox" id="userCanCreateSales" checked /> Allow create Sales</label>
-      <div style="margin-top:10px;text-align:right;">
+      
+      <h4 style="margin-top:15px;">Navigation Access Permissions</h4>
+      <div class="permission-grid">
+        <div class="permission-item">
+          <input type="checkbox" id="userCanViewSales" checked />
+          <label>Sales</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanViewInventory" checked />
+          <label>Inventory</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanViewExpenses" checked />
+          <label>Expenses</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanViewEmployees" />
+          <label>Employees</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanViewSuppliers" />
+          <label>Suppliers</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanViewDeposits" />
+          <label>Deposits</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanViewRecords" />
+          <label>Records</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanViewSettings" />
+          <label>Settings</label>
+        </div>
+      </div>
+      
+      <h4 style="margin-top:15px;">Action Permissions</h4>
+      <div class="permission-grid">
+        <div class="permission-item">
+          <input type="checkbox" id="userCanCreateSales" checked />
+          <label>Create Sales</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanEditData" />
+          <label>Edit Data</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanDeleteData" />
+          <label>Delete Data</label>
+        </div>
+      </div>
+      
+      <div style="margin-top:15px;text-align:right;">
         <button type="submit" class="btn btn-primary">Save User</button>
         <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Cancel</button>
       </div>
@@ -425,7 +486,7 @@
 /* ===========================
    STORAGE & INITIAL STATE
    =========================== */
-const STORAGE_KEY = "sales_system_data_v3";
+const STORAGE_KEY = "sales_system_data_v4_admin_control";
 const fmt = n => "UGX " + Number(n||0).toLocaleString();
 const idf = () => Math.random().toString(36).substr(2,9);
 
@@ -437,9 +498,27 @@ if(!state.employees) state.employees=[];
 if(!state.suppliers) state.suppliers=[];
 if(!state.deposits) state.deposits=[];
 if(!state.users) {
-  // default admin user (client-side demo)
+  // default admin user (client-side demo) with full permissions
   state.users = [
-    {id: idf(), username: 'admin', password: 'admin123', role:'admin', canViewRecords:true, canCreateSales:true}
+    {
+      id: idf(), 
+      username: 'admin', 
+      password: 'admin123', 
+      role:'admin',
+      permissions: {
+        canViewSales: true,
+        canViewInventory: true,
+        canViewExpenses: true,
+        canViewEmployees: true,
+        canViewSuppliers: true,
+        canViewDeposits: true,
+        canViewRecords: true,
+        canViewSettings: true,
+        canCreateSales: true,
+        canEditData: true,
+        canDeleteData: true
+      }
+    }
   ];
 }
 if(!state.meta) state.meta={currentUserId:null};
@@ -450,6 +529,14 @@ function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updat
 
 // currently logged in user (object or null)
 function currentUser(){ return state.users.find(u=>u.id===state.meta.currentUserId) || null; }
+
+// Check if user has permission for a specific action/view
+function hasPermission(permissionKey) {
+  const user = currentUser();
+  if(!user) return false;
+  if(user.role === 'admin') return true; // Admin has all permissions
+  return user.permissions && user.permissions[permissionKey];
+}
 
 // Company header for all receipts
 function companyHeaderHTML(){
@@ -496,26 +583,54 @@ document.getElementById('loginForm').addEventListener('submit', e=>{
 function logout(){ state.meta.currentUserId = null; save(); showLogin(); renderAll(); }
 
 /* ===========================
-   NAVIGATION
+   NAVIGATION WITH ACCESS CONTROL
    =========================== */
 document.querySelectorAll("#navList .nav-item").forEach(nav=>{
   nav.addEventListener("click", ()=>{
     const user = currentUser();
-    // restrict records nav
-    if(nav.dataset.view === 'records' && (!user || !user.canViewRecords)) { alert('You do not have permission to view Records'); return; }
+    const view = nav.dataset.view;
+    
+    // Check if user has permission to access this view
+    const permissionMap = {
+      'dashboard': true, // Everyone can access dashboard
+      'sales': 'canViewSales',
+      'inventory': 'canViewInventory', 
+      'expenses': 'canViewExpenses',
+      'employees': 'canViewEmployees',
+      'suppliers': 'canViewSuppliers',
+      'deposits': 'canViewDeposits',
+      'records': 'canViewRecords',
+      'settings': 'canViewSettings'
+    };
+    
+    const requiredPermission = permissionMap[view];
+    if(requiredPermission !== true && !hasPermission(requiredPermission)) {
+      showAccessDenied();
+      return;
+    }
+    
+    // Update active nav
     document.querySelectorAll("#navList .nav-item").forEach(n=>n.classList.remove("active"));
     nav.classList.add("active");
-    const v=nav.dataset.view;
+    
+    // Show the view
     document.querySelectorAll(".view").forEach(sec=>sec.style.display='none');
-    document.querySelector(`.view[data-view='${v}']`).style.display='block';
+    document.getElementById('accessDenied').style.display='none';
+    document.querySelector(`.view[data-view='${view}']`).style.display='block';
     renderAll();
   });
 });
+
+function showAccessDenied(){
+  document.querySelectorAll(".view").forEach(sec=>sec.style.display='none');
+  document.getElementById('accessDenied').style.display='block';
+}
 
 /* ===========================
    SALES (with save status tracking)
    =========================== */
 function renderSales(){
+  if(!hasPermission('canViewSales')) return;
   const tbody = document.querySelector('#salesTable tbody'); tbody.innerHTML='';
   state.sales.forEach((s, index) => {
     const items = s.items ? s.items.map(i=>`${i.name} x${i.qty} @ ${fmt(i.price)}`).join(', ') : 'No items';
@@ -528,8 +643,8 @@ function renderSales(){
     tr.innerHTML=`<td>${s.date}</td><td>${s.customer}</td><td>${items}</td><td>${fmt(s.total)}</td><td>${statusBadge}</td>
       <td>
         <button class="btn btn-secondary small" onclick="printSale('${s.id}')">🖨️</button>
-        ${!isSaved ? `<button class="btn btn-primary small" onclick="editSale(${index})">Edit</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteSale('${s.id}')">Delete</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editSale(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteSale('${s.id}')">Delete</button>` : ''}
         ${!isSaved ? `<button class="btn btn-secondary small" onclick="markSaleSaved('${s.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteSale('${s.id}')">Admin Delete</button>` : ''}
       </td>`;
@@ -538,8 +653,7 @@ function renderSales(){
 }
 
 function openSaleModal(){ 
-  const user = currentUser();
-  if(!user || !user.canCreateSales) { alert('You do not have permission to create sales'); return; }
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to create sales'); return; }
   document.getElementById('saleForm').reset();
   document.getElementById('saleId').value = '';
   document.getElementById('saleItems').innerHTML='';
@@ -642,6 +756,7 @@ document.getElementById('saleForm').addEventListener('submit', e=>{
 });
 
 function editSale(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit sales'); return; }
   const s = state.sales[index];
   if(!s || s.saved) return alert('Cannot edit saved sales');
   
@@ -665,6 +780,7 @@ function editSale(index){
 }
 
 function deleteSale(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete sales'); return; }
   if(!confirm('Delete this sale?')) return;
   const sale = state.sales.find(s=>s.id===id);
   if(sale && sale.saved) return alert('Cannot delete saved sales');
@@ -723,6 +839,7 @@ function printSales(){
    INVENTORY (with save status)
    =========================== */
 function renderInventory(){
+  if(!hasPermission('canViewInventory')) return;
   const tbody=document.querySelector('#inventoryTable tbody'); tbody.innerHTML='';
   state.inventory.forEach((item, index) => {
     const tr=document.createElement('tr');
@@ -733,8 +850,8 @@ function renderInventory(){
     tr.className = isSaved ? 'saved' : 'unsaved';
     tr.innerHTML=`<td>${item.name}</td><td>${item.category||''}</td><td>${item.supplier||''}</td><td>${item.qty}</td><td>${fmt(item.cost)}</td><td>${item.reorder||''}</td><td>${statusBadge}</td>
       <td>
-        ${!isSaved ? `<button class="btn btn-primary small" onclick="editInventory(${index})">Edit</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteInventory('${item.id}')">Delete</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editInventory(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteInventory('${item.id}')">Delete</button>` : ''}
         ${!isSaved ? `<button class="btn btn-secondary small" onclick="markInventorySaved('${item.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteInventory('${item.id}')">Admin Delete</button>` : ''}
       </td>`;
@@ -742,7 +859,10 @@ function renderInventory(){
   });
 }
 
-function openInventoryModal(){document.getElementById('inventoryForm').reset();document.getElementById('itemId').value='';document.getElementById('inventoryModal').style.display='flex';}
+function openInventoryModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add inventory'); return; }
+  document.getElementById('inventoryForm').reset();document.getElementById('itemId').value='';document.getElementById('inventoryModal').style.display='flex';
+}
 function closeInventoryModal(){document.getElementById('inventoryModal').style.display='none';}
 
 document.getElementById('inventoryForm').addEventListener('submit', e=>{
@@ -771,6 +891,7 @@ document.getElementById('inventoryForm').addEventListener('submit', e=>{
 });
 
 function editInventory(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit inventory'); return; }
   const i = state.inventory[index];
   if(!i || i.saved) return alert('Cannot edit saved items');
   
@@ -785,6 +906,7 @@ function editInventory(index){
 }
 
 function deleteInventory(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete inventory'); return; }
   const item = state.inventory.find(i=>i.id===id);
   if(item && item.saved) return alert('Cannot delete saved items');
   if(confirm('Delete this item?')){
@@ -820,6 +942,7 @@ function printInventory(){
    EXPENSES (with save status)
    =========================== */
 function renderExpenses(){
+  if(!hasPermission('canViewExpenses')) return;
   const tbody=document.querySelector('#expensesTable tbody'); tbody.innerHTML='';
   let total=0;
   state.expenses.forEach((e, index) => {
@@ -832,8 +955,8 @@ function renderExpenses(){
     tr.className = isSaved ? 'saved' : 'unsaved';
     tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td><td>${statusBadge}</td>
       <td>
-        ${!isSaved ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
         ${!isSaved ? `<button class="btn btn-secondary small" onclick="markExpenseSaved('${e.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteExpense('${e.id}')">Admin Delete</button>` : ''}
       </td>`;
@@ -842,7 +965,10 @@ function renderExpenses(){
   document.getElementById('expenseTotal').innerText='Total: '+fmt(total);
 }
 
-function openExpenseModal(){document.getElementById('expenseForm').reset();document.getElementById('expenseId').value='';document.getElementById('expenseModal').style.display='flex';}
+function openExpenseModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add expenses'); return; }
+  document.getElementById('expenseForm').reset();document.getElementById('expenseId').value='';document.getElementById('expenseModal').style.display='flex';
+}
 function closeExpenseModal(){document.getElementById('expenseModal').style.display='none';}
 
 document.getElementById('expenseForm').addEventListener('submit', e=>{
@@ -860,6 +986,7 @@ document.getElementById('expenseForm').addEventListener('submit', e=>{
 });
 
 function editExpense(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit expenses'); return; }
   const e = state.expenses[index];
   if(!e || e.saved) return alert('Cannot edit saved expenses');
   
@@ -872,6 +999,7 @@ function editExpense(index){
 }
 
 function deleteExpense(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete expenses'); return; }
   const expense = state.expenses.find(e=>e.id===id);
   if(expense && expense.saved) return alert('Cannot delete saved expenses');
   if(!confirm('Delete this expense?')) return;
@@ -909,8 +1037,8 @@ function searchExpenses(){
     
     tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td><td>${statusBadge}</td>
       <td>
-        ${!isSaved ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
         ${!isSaved ? `<button class="btn btn-secondary small" onclick="markExpenseSaved('${e.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteExpense('${e.id}')">Admin Delete</button>` : ''}
       </td>`;
@@ -928,6 +1056,7 @@ function printExpenses(){
    EMPLOYEES (with save status)
    =========================== */
 function renderEmployees(){
+  if(!hasPermission('canViewEmployees')) return;
   const tbody=document.querySelector('#employeesTable tbody'); tbody.innerHTML='';
   state.employees.forEach((e, index) => {
     const tr=document.createElement('tr');
@@ -938,8 +1067,8 @@ function renderEmployees(){
     tr.className = isSaved ? 'saved' : 'unsaved';
     tr.innerHTML=`<td>${e.name}</td><td>${e.position||''}</td><td>${e.email||''}</td><td>${e.phone||''}</td><td>${statusBadge}</td>
       <td>
-        ${!isSaved ? `<button class="btn btn-primary small" onclick="editEmployee(${index})">Edit</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteEmployee('${e.id}')">Delete</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editEmployee(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteEmployee('${e.id}')">Delete</button>` : ''}
         ${!isSaved ? `<button class="btn btn-secondary small" onclick="markEmployeeSaved('${e.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteEmployee('${e.id}')">Admin Delete</button>` : ''}
       </td>`;
@@ -947,7 +1076,10 @@ function renderEmployees(){
   });
 }
 
-function openEmployeeModal(){document.getElementById('employeeForm').reset();document.getElementById('employeeId').value='';document.getElementById('employeeModal').style.display='flex';}
+function openEmployeeModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add employees'); return; }
+  document.getElementById('employeeForm').reset();document.getElementById('employeeId').value='';document.getElementById('employeeModal').style.display='flex';
+}
 function closeEmployeeModal(){document.getElementById('employeeModal').style.display='none';}
 
 document.getElementById('employeeForm').addEventListener('submit', e=>{
@@ -965,6 +1097,7 @@ document.getElementById('employeeForm').addEventListener('submit', e=>{
 });
 
 function editEmployee(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit employees'); return; }
   const e = state.employees[index];
   if(!e || e.saved) return alert('Cannot edit saved employees');
   
@@ -977,6 +1110,7 @@ function editEmployee(index){
 }
 
 function deleteEmployee(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete employees'); return; }
   const emp = state.employees.find(e=>e.id===id);
   if(emp && emp.saved) return alert('Cannot delete saved employees');
   if(confirm('Delete employee?')){
@@ -1012,6 +1146,7 @@ function printEmployees(){
    SUPPLIERS (with save status)
    =========================== */
 function renderSuppliers(){
+  if(!hasPermission('canViewSuppliers')) return;
   const tbody=document.querySelector('#suppliersTable tbody'); tbody.innerHTML='';
   state.suppliers.forEach((s, index) => {
     const tr=document.createElement('tr');
@@ -1022,8 +1157,8 @@ function renderSuppliers(){
     tr.className = isSaved ? 'saved' : 'unsaved';
     tr.innerHTML=`<td>${s.name}</td><td>${s.contact||''}</td><td>${s.email||''}</td><td>${statusBadge}</td>
       <td>
-        ${!isSaved ? `<button class="btn btn-primary small" onclick="editSupplier(${index})">Edit</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteSupplier('${s.id}')">Delete</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editSupplier(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteSupplier('${s.id}')">Delete</button>` : ''}
         ${!isSaved ? `<button class="btn btn-secondary small" onclick="markSupplierSaved('${s.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteSupplier('${s.id}')">Admin Delete</button>` : ''}
       </td>`;
@@ -1031,7 +1166,10 @@ function renderSuppliers(){
   });
 }
 
-function openSupplierModal(){document.getElementById('supplierForm').reset();document.getElementById('supplierId').value='';document.getElementById('supplierModal').style.display='flex';}
+function openSupplierModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add suppliers'); return; }
+  document.getElementById('supplierForm').reset();document.getElementById('supplierId').value='';document.getElementById('supplierModal').style.display='flex';
+}
 function closeSupplierModal(){document.getElementById('supplierModal').style.display='none';}
 
 document.getElementById('supplierForm').addEventListener('submit', e=>{
@@ -1049,6 +1187,7 @@ document.getElementById('supplierForm').addEventListener('submit', e=>{
 });
 
 function editSupplier(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit suppliers'); return; }
   const s = state.suppliers[index];
   if(!s || s.saved) return alert('Cannot edit saved suppliers');
   
@@ -1060,6 +1199,7 @@ function editSupplier(index){
 }
 
 function deleteSupplier(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete suppliers'); return; }
   const sup = state.suppliers.find(s=>s.id===id);
   if(sup && sup.saved) return alert('Cannot delete saved suppliers');
   if(confirm('Delete supplier?')){
@@ -1095,6 +1235,7 @@ function printSuppliers(){
    DEPOSITS (enhanced with item tracking and automated balance)
    =========================== */
 function renderDeposits(){
+  if(!hasPermission('canViewDeposits')) return;
   const tbody=document.querySelector('#depositsTable tbody'); tbody.innerHTML='';
   state.deposits.forEach((d, index) => {
     const tr=document.createElement('tr');
@@ -1107,8 +1248,8 @@ function renderDeposits(){
     tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${d.item || 'N/A'}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
       <td>
         <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
-        ${!isSaved ? `<button class="btn btn-primary small" onclick="editDeposit(${index})">Edit</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editDeposit(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
         ${!isSaved ? `<button class="btn btn-secondary small" onclick="markDepositSaved('${d.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteDeposit('${d.id}')">Admin Delete</button>` : ''}
       </td>`;
@@ -1117,6 +1258,7 @@ function renderDeposits(){
 }
 
 function openDepositModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add deposits'); return; }
   document.getElementById('depositForm').reset();
   document.getElementById('depositId').value='';
   document.getElementById('depositDate').value = new Date().toISOString().slice(0,10);
@@ -1151,6 +1293,7 @@ document.getElementById('depositForm').addEventListener('submit', e=>{
 });
 
 function editDeposit(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit deposits'); return; }
   const d = state.deposits[index];
   if(!d || d.saved) return alert('Cannot edit saved deposits');
   
@@ -1164,6 +1307,7 @@ function editDeposit(index){
 }
 
 function deleteDeposit(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete deposits'); return; }
   const dep = state.deposits.find(d=>d.id===id);
   if(dep && dep.saved) return alert('Cannot delete saved deposits');
   if(confirm('Delete deposit?')){
@@ -1266,6 +1410,7 @@ function buildRecordsArray(){
 /* Pagination state */
 let recordsPage = 1;
 function renderRecords(list){
+  if(!hasPermission('canViewRecords')) return;
   const tbody=document.querySelector('#recordsTable tbody'); tbody.innerHTML='';
   const rowsAll = list || buildRecordsArray();
   let rows = rowsAll;
@@ -1348,6 +1493,8 @@ function recordsJump(){ const v = Number(document.getElementById('recordsGoto').
    USERS / SETTINGS (admin only)
    =========================== */
 function openUserModal(){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') { alert('Admin access required'); return; }
   document.getElementById('userForm').reset();
   document.getElementById('userId').value='';
   populateUsersList();
@@ -1359,7 +1506,7 @@ function populateUsersList(){
   const el = document.getElementById('usersList'); el.innerHTML='';
   state.users.forEach(u=>{
     const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.padding='6px 0';
-    const left = document.createElement('div'); left.innerHTML = `<strong>${u.username}</strong> <span class="muted">(${u.role})</span> ${u.canViewRecords?'<span class="muted">• records</span>':''}`;
+    const left = document.createElement('div'); left.innerHTML = `<strong>${u.username}</strong> <span class="muted">(${u.role})</span>`;
     const right = document.createElement('div');
     const edit = document.createElement('button'); edit.className='btn small'; edit.textContent='Edit'; edit.onclick=()=>{ editUser(u.id); };
     const del = document.createElement('button'); del.className='btn small'; del.textContent='Delete'; del.onclick=()=>{ if(confirm('Delete user?')){ state.users = state.users.filter(x=>x.id!==u.id); save(); populateUsersList(); } };
@@ -1375,8 +1522,21 @@ function editUser(id){
   document.getElementById('userName').value = u.username;
   document.getElementById('userPass').value = u.password;
   document.getElementById('userRole').value = u.role;
-  document.getElementById('userCanViewRecords').checked = !!u.canViewRecords;
-  document.getElementById('userCanCreateSales').checked = (u.canCreateSales !== false);
+  
+  // Set permission checkboxes
+  const permissions = u.permissions || {};
+  document.getElementById('userCanViewSales').checked = permissions.canViewSales !== false;
+  document.getElementById('userCanViewInventory').checked = permissions.canViewInventory !== false;
+  document.getElementById('userCanViewExpenses').checked = permissions.canViewExpenses !== false;
+  document.getElementById('userCanViewEmployees').checked = !!permissions.canViewEmployees;
+  document.getElementById('userCanViewSuppliers').checked = !!permissions.canViewSuppliers;
+  document.getElementById('userCanViewDeposits').checked = !!permissions.canViewDeposits;
+  document.getElementById('userCanViewRecords').checked = !!permissions.canViewRecords;
+  document.getElementById('userCanViewSettings').checked = !!permissions.canViewSettings;
+  document.getElementById('userCanCreateSales').checked = permissions.canCreateSales !== false;
+  document.getElementById('userCanEditData').checked = !!permissions.canEditData;
+  document.getElementById('userCanDeleteData').checked = !!permissions.canDeleteData;
+  
   document.getElementById('userModal').style.display = 'flex';
 }
 
@@ -1386,13 +1546,28 @@ document.getElementById('userForm').addEventListener('submit', e=>{
   const username = document.getElementById('userName').value.trim();
   const password = document.getElementById('userPass').value;
   const role = document.getElementById('userRole').value;
-  const canViewRecords = document.getElementById('userCanViewRecords').checked;
-  const canCreateSales = document.getElementById('userCanCreateSales').checked;
+  
+  // Get all permissions
+  const permissions = {
+    canViewSales: document.getElementById('userCanViewSales').checked,
+    canViewInventory: document.getElementById('userCanViewInventory').checked,
+    canViewExpenses: document.getElementById('userCanViewExpenses').checked,
+    canViewEmployees: document.getElementById('userCanViewEmployees').checked,
+    canViewSuppliers: document.getElementById('userCanViewSuppliers').checked,
+    canViewDeposits: document.getElementById('userCanViewDeposits').checked,
+    canViewRecords: document.getElementById('userCanViewRecords').checked,
+    canViewSettings: document.getElementById('userCanViewSettings').checked,
+    canCreateSales: document.getElementById('userCanCreateSales').checked,
+    canEditData: document.getElementById('userCanEditData').checked,
+    canDeleteData: document.getElementById('userCanDeleteData').checked
+  };
+  
   if(state.users.some(u=>u.username === username && u.id !== id)){ alert('Username already exists'); return; }
   const existingIndex = state.users.findIndex(u=>u.id===id);
-  const userObj = {id, username, password, role, canViewRecords, canCreateSales};
+  const userObj = {id, username, password, role, permissions};
   if(existingIndex >= 0) state.users[existingIndex] = userObj; else state.users.push(userObj);
-  save(); populateUsersList(); closeUserModal();
+  save(); populateUsersList(); closeUserModal(); 
+  updateUIForAuth(); // Refresh UI to reflect permission changes
 });
 
 /* ===========================
@@ -1413,6 +1588,7 @@ document.getElementById('companyForm').addEventListener('submit', e=>{
 
 /* SETTINGS area render (Admin-only) */
 function renderSettingsAdmin(){
+  if(!hasPermission('canViewSettings')) return;
   const container = document.getElementById('settingsAdminArea'); container.innerHTML='';
   const user = currentUser();
   if(!user || user.role !== 'admin'){ 
@@ -1440,22 +1616,41 @@ function updateUIForAuth(){
   const user = currentUser();
   document.getElementById('currentUserDisplay').innerText = user ? `Signed in as: ${user.username} (${user.role})` : 'Not signed in';
   document.getElementById('systemStatus').innerText = user ? 'Online' : 'Offline';
-  const newSaleBtn = document.getElementById('newSaleBtn');
-  if(newSaleBtn) newSaleBtn.disabled = !(user && user.canCreateSales);
-  renderSettingsAdmin();
-  // restrict nav items visibility
+  
+  // Update nav items visibility and state based on permissions
   document.querySelectorAll("#navList .nav-item").forEach(nav=>{
-    if(nav.dataset.view === 'records'){
-      nav.style.display = (user && user.canViewRecords) ? 'flex' : 'none';
-    } else {
+    const view = nav.dataset.view;
+    const permissionMap = {
+      'dashboard': true, // Everyone can access dashboard
+      'sales': 'canViewSales',
+      'inventory': 'canViewInventory',
+      'expenses': 'canViewExpenses',
+      'employees': 'canViewEmployees',
+      'suppliers': 'canViewSuppliers',
+      'deposits': 'canViewDeposits',
+      'records': 'canViewRecords',
+      'settings': 'canViewSettings'
+    };
+    
+    const requiredPermission = permissionMap[view];
+    if(requiredPermission === true || hasPermission(requiredPermission)) {
       nav.style.display = 'flex';
+      nav.classList.remove('disabled');
+    } else {
+      nav.style.display = 'flex'; // Still show but disabled
+      nav.classList.add('disabled');
     }
   });
+  
   if(!user) showLogin(); else hideLogin();
   const qa = document.getElementById('quickUserActions'); qa.innerHTML='';
   if(user){
     const profileBtn = document.createElement('button'); profileBtn.className='btn small'; profileBtn.textContent='Profile'; 
-    profileBtn.onclick = ()=>{ alert(`Profile: ${user.username} (${user.role})\nRecords Access: ${user.canViewRecords ? 'Yes' : 'No'}\nSales Creation: ${user.canCreateSales ? 'Yes' : 'No'}`); };
+    profileBtn.onclick = ()=>{ 
+      const perms = user.permissions || {};
+      const permList = Object.keys(perms).filter(k=>perms[k]).join(', ');
+      alert(`Profile: ${user.username} (${user.role})\nPermissions: ${permList || 'None'}`); 
+    };
     qa.appendChild(profileBtn);
   }
 }
