@@ -1628,5 +1628,1076 @@ function printTaxInvoice(id){
   html += `<div style="text-align:right;margin-top:20px;">`;
   html += `<p><strong>Subtotal: ${fmt(t.subtotal)}</strong></p>`;
   html += `<p><strong>VAT: ${fmt(t.vatAmount)}</strong></p>`;
-  html += `<p style="font-size:1.2em;
-...
+  html += `<p style="font-size:1.2em;"><strong>Grand Total: ${fmt(t.grandTotal)}</strong></p>`;
+  html += `</div>`;
+  html += builderFooterHTML();
+ 
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+function printTaxInvoices(){
+  const html=companyHeaderHTML()+'<h3>All Tax Invoices</h3>'+document.querySelector('#taxInvoiceTable').outerHTML + builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+/* ===========================
+   INVENTORY (with save status)
+   =========================== */
+function renderInventory(){
+  if(!hasPermission('canViewInventory')) return;
+  const tbody=document.querySelector('#inventoryTable tbody'); tbody.innerHTML='';
+  state.inventory.forEach((item, index) => {
+    const tr=document.createElement('tr');
+    const isSaved = item.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>'
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+   
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${item.name}</td><td>${item.category||''}</td><td>${item.supplier||''}</td><td>${item.qty}</td><td>${fmt(item.cost)}</td><td>${item.reorder||''}</td><td>${statusBadge}</td>
+      <td>
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editInventory(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteInventory('${item.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markInventorySaved('${item.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteInventory('${item.id}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function openInventoryModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add inventory'); return; }
+  document.getElementById('inventoryForm').reset();document.getElementById('itemId').value='';document.getElementById('inventoryModal').style.display='flex';
+}
+function closeInventoryModal(){document.getElementById('inventoryModal').style.display='none';}
+
+document.getElementById('inventoryForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const id=document.getElementById('itemId').value;
+  const existing = state.inventory.find(i=>i.id===id);
+  const created = existing ? existing.created : new Date().toISOString().slice(0,10);
+  const item={id: id || idf(),
+    name:document.getElementById('itemName').value,
+    category:document.getElementById('itemCategory').value,
+    supplier:document.getElementById('itemSupplier').value,
+    qty:Number(document.getElementById('itemQty').value),
+    cost:Number(document.getElementById('itemCost').value),
+    reorder:Number(document.getElementById('itemReorder').value),
+    created,
+    saved: false
+  };
+ 
+  if(id){
+    const index=state.inventory.findIndex(i=>i.id===id);
+    if(index >= 0) state.inventory[index] = item;
+  } else {
+    state.inventory.push(item);
+  }
+  save(); renderInventory(); closeInventoryModal();
+});
+
+function editInventory(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit inventory'); return; }
+  const i = state.inventory[index];
+  if(!i || i.saved) return alert('Cannot edit saved items');
+ 
+  document.getElementById('itemId').value=i.id;
+  document.getElementById('itemName').value=i.name;
+  document.getElementById('itemCategory').value=i.category||'';
+  document.getElementById('itemSupplier').value=i.supplier||'';
+  document.getElementById('itemQty').value=i.qty;
+  document.getElementById('itemCost').value=i.cost;
+  document.getElementById('itemReorder').value=i.reorder||5;
+  document.getElementById('inventoryModal').style.display='flex';
+}
+
+function deleteInventory(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete inventory'); return; }
+  const item = state.inventory.find(i=>i.id===id);
+  if(item && item.saved) return alert('Cannot delete saved items');
+  if(confirm('Delete this item?')){
+    state.inventory=state.inventory.filter(i=>i.id!==id);
+    save();renderInventory();renderRecords();
+  }
+}
+
+function adminDeleteInventory(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(confirm('Admin delete this saved item?')){
+    state.inventory=state.inventory.filter(i=>i.id!==id);
+    save();renderInventory();renderRecords();
+  }
+}
+
+function markInventorySaved(id){
+  const item = state.inventory.find(i => i.id === id);
+  if(item) {
+    item.saved = true;
+    save();
+    renderInventory();
+  }
+}
+
+function printInventory(){
+  const html=companyHeaderHTML()+'<h3>Inventory Report</h3>'+document.querySelector('#inventoryTable').outerHTML + builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+/* ===========================
+   EXPENSES (with save status)
+   =========================== */
+function renderExpenses(){
+  if(!hasPermission('canViewExpenses')) return;
+  const tbody=document.querySelector('#expensesTable tbody'); tbody.innerHTML='';
+  let total=0;
+  state.expenses.forEach((e, index) => {
+    total+=Number(e.amount);
+    const tr=document.createElement('tr');
+    const isSaved = e.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>'
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+   
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td><td>${statusBadge}</td>
+      <td>
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markExpenseSaved('${e.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteExpense('${e.id}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('expenseTotal').innerText='Total: '+fmt(total);
+}
+
+function openExpenseModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add expenses'); return; }
+  document.getElementById('expenseForm').reset();document.getElementById('expenseId').value='';document.getElementById('expenseModal').style.display='flex';
+}
+function closeExpenseModal(){document.getElementById('expenseModal').style.display='none';}
+
+document.getElementById('expenseForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const id = document.getElementById('expenseId').value;
+  const exp={id: id || idf(), date:document.getElementById('expenseDate').value, category:document.getElementById('expenseCategory').value, description:document.getElementById('expenseDesc').value, amount:Number(document.getElementById('expenseAmount').value), saved: false};
+ 
+  if(id){
+    const index = state.expenses.findIndex(e => e.id === id);
+    if(index >= 0) state.expenses[index] = exp;
+  } else {
+    state.expenses.push(exp);
+  }
+  save(); renderExpenses(); renderRecords(); closeExpenseModal();
+});
+
+function editExpense(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit expenses'); return; }
+  const e = state.expenses[index];
+  if(!e || e.saved) return alert('Cannot edit saved expenses');
+ 
+  document.getElementById('expenseId').value = e.id;
+  document.getElementById('expenseDate').value = e.date;
+  document.getElementById('expenseCategory').value = e.category;
+  document.getElementById('expenseDesc').value = e.description;
+  document.getElementById('expenseAmount').value = e.amount;
+  document.getElementById('expenseModal').style.display='flex';
+}
+
+function deleteExpense(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete expenses'); return; }
+  const expense = state.expenses.find(e=>e.id===id);
+  if(expense && expense.saved) return alert('Cannot delete saved expenses');
+  if(!confirm('Delete this expense?')) return;
+  state.expenses=state.expenses.filter(e=>e.id!==id);
+  save(); renderExpenses(); renderRecords();
+}
+
+function adminDeleteExpense(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(!confirm('Admin delete this saved expense?')) return;
+  state.expenses=state.expenses.filter(e=>e.id!==id);
+  save(); renderExpenses(); renderRecords();
+}
+
+function markExpenseSaved(id){
+  const expense = state.expenses.find(e => e.id === id);
+  if(expense) {
+    expense.saved = true;
+    save();
+    renderExpenses();
+  }
+}
+
+function searchExpenses(){
+  const from=document.getElementById('expenseFrom').value; const to=document.getElementById('expenseTo').value;
+  const tbody=document.querySelector('#expensesTable tbody'); tbody.innerHTML='';
+  let total=0;
+  state.expenses.filter(e=>(!from || e.date>=from) && (!to || e.date<=to)).forEach((e, index) => {
+    total+=Number(e.amount);
+    const tr=document.createElement('tr');
+    const isSaved = e.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>'
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+   
+    tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td><td>${statusBadge}</td>
+      <td>
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markExpenseSaved('${e.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteExpense('${e.id}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('expenseTotal').innerText='Total: '+fmt(total);
+}
+
+function printExpenses(){
+  const html=companyHeaderHTML()+'<h3>Expenses Report</h3>'+document.querySelector('#expensesTable').outerHTML + builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+/* ===========================
+   EMPLOYEES (with save status)
+   =========================== */
+function renderEmployees(){
+  if(!hasPermission('canViewEmployees')) return;
+  const tbody=document.querySelector('#employeesTable tbody'); tbody.innerHTML='';
+  state.employees.forEach((e, index) => {
+    const tr=document.createElement('tr');
+    const isSaved = e.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>'
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+   
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${e.name}</td><td>${e.position||''}</td><td>${e.email||''}</td><td>${e.phone||''}</td><td>${statusBadge}</td>
+      <td>
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editEmployee(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteEmployee('${e.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markEmployeeSaved('${e.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteEmployee('${e.id}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function openEmployeeModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add employees'); return; }
+  document.getElementById('employeeForm').reset();document.getElementById('employeeId').value='';document.getElementById('employeeModal').style.display='flex';
+}
+function closeEmployeeModal(){document.getElementById('employeeModal').style.display='none';}
+
+document.getElementById('employeeForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const id=document.getElementById('employeeId').value;
+  const emp={id: id || idf(), name:document.getElementById('employeeName').value, position:document.getElementById('employeePosition').value, email:document.getElementById('employeeEmail').value, phone:document.getElementById('employeePhone').value, saved: false};
+ 
+  if(id){
+    const index=state.employees.findIndex(x=>x.id===id);
+    if(index >= 0) state.employees[index]=emp;
+  } else {
+    state.employees.push(emp);
+  }
+  save(); renderEmployees(); closeEmployeeModal();
+});
+
+function editEmployee(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit employees'); return; }
+  const e = state.employees[index];
+  if(!e || e.saved) return alert('Cannot edit saved employees');
+ 
+  document.getElementById('employeeId').value=e.id;
+  document.getElementById('employeeName').value=e.name;
+  document.getElementById('employeePosition').value=e.position||'';
+  document.getElementById('employeeEmail').value=e.email||'';
+  document.getElementById('employeePhone').value=e.phone||'';
+  document.getElementById('employeeModal').style.display='flex';
+}
+
+function deleteEmployee(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete employees'); return; }
+  const emp = state.employees.find(e=>e.id===id);
+  if(emp && emp.saved) return alert('Cannot delete saved employees');
+  if(confirm('Delete employee?')){
+    state.employees=state.employees.filter(e=>e.id!==id);
+    save();renderEmployees();
+  }
+}
+
+function adminDeleteEmployee(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(confirm('Admin delete this saved employee?')){
+    state.employees=state.employees.filter(e=>e.id!==id);
+    save();renderEmployees();
+  }
+}
+
+function markEmployeeSaved(id){
+  const emp = state.employees.find(e => e.id === id);
+  if(emp) {
+    emp.saved = true;
+    save();
+    renderEmployees();
+  }
+}
+
+function printEmployees(){
+  const html=companyHeaderHTML()+'<h3>Employees Report</h3>'+document.querySelector('#employeesTable').outerHTML + builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+/* ===========================
+   SUPPLIERS (with save status)
+   =========================== */
+function renderSuppliers(){
+  if(!hasPermission('canViewSuppliers')) return;
+  const tbody=document.querySelector('#suppliersTable tbody'); tbody.innerHTML='';
+  state.suppliers.forEach((s, index) => {
+    const tr=document.createElement('tr');
+    const isSaved = s.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>'
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+   
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${s.name}</td><td>${s.contact||''}</td><td>${s.email||''}</td><td>${statusBadge}</td>
+      <td>
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editSupplier(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteSupplier('${s.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markSupplierSaved('${s.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteSupplier('${s.id}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function openSupplierModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add suppliers'); return; }
+  document.getElementById('supplierForm').reset();document.getElementById('supplierId').value='';document.getElementById('supplierModal').style.display='flex';
+}
+function closeSupplierModal(){document.getElementById('supplierModal').style.display='none';}
+
+document.getElementById('supplierForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const id=document.getElementById('supplierId').value;
+  const sup={id: id || idf(), name:document.getElementById('supplierName').value, contact:document.getElementById('supplierContact').value, email:document.getElementById('supplierEmail').value, saved: false};
+ 
+  if(id){
+    const index=state.suppliers.findIndex(x=>x.id===id);
+    if(index >= 0) state.suppliers[index]=sup;
+  } else {
+    state.suppliers.push(sup);
+  }
+  save(); renderSuppliers(); closeSupplierModal();
+});
+
+function editSupplier(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit suppliers'); return; }
+  const s = state.suppliers[index];
+  if(!s || s.saved) return alert('Cannot edit saved suppliers');
+ 
+  document.getElementById('supplierId').value=s.id;
+  document.getElementById('supplierName').value=s.name;
+  document.getElementById('supplierContact').value=s.contact||'';
+  document.getElementById('supplierEmail').value=s.email||'';
+  document.getElementById('supplierModal').style.display='flex';
+}
+
+function deleteSupplier(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete suppliers'); return; }
+  const sup = state.suppliers.find(s=>s.id===id);
+  if(sup && sup.saved) return alert('Cannot delete saved suppliers');
+  if(confirm('Delete supplier?')){
+    state.suppliers=state.suppliers.filter(s=>s.id!==id);
+    save();renderSuppliers();
+  }
+}
+
+function adminDeleteSupplier(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(confirm('Admin delete this saved supplier?')){
+    state.suppliers=state.suppliers.filter(s=>s.id!==id);
+    save();renderSuppliers();
+  }
+}
+
+function markSupplierSaved(id){
+  const sup = state.suppliers.find(s => s.id === id);
+  if(sup) {
+    sup.saved = true;
+    save();
+    renderSuppliers();
+  }
+}
+
+function printSuppliers(){
+  const html=companyHeaderHTML()+'<h3>Suppliers Report</h3>'+document.querySelector('#suppliersTable').outerHTML + builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+/* ===========================
+   DEPOSITS (enhanced with search and top-up and prepaid functionality)
+   =========================== */
+function populateClientSuggestions(){
+  const datalist = document.getElementById('clientSuggestions');
+  datalist.innerHTML = '';
+  const clients = [...new Set(state.deposits.map(d => d.client))];
+  clients.forEach(client => {
+    const option = document.createElement('option');
+    option.value = client;
+    datalist.appendChild(option);
+  });
+}
+
+function renderDeposits(){
+  if(!hasPermission('canViewDeposits')) return;
+  const tbody=document.querySelector('#depositsTable tbody'); tbody.innerHTML='';
+  state.deposits.forEach((d, index) => {
+    const tr=document.createElement('tr');
+    const isSaved = d.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>'
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    const remainingBalance = Number(d.amount) - Number(d.used || 0);
+   
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${d.item || 'N/A'}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
+      <td>
+        <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
+        ${remainingBalance > 0 ? `<button class="btn btn-secondary small" onclick="topUpDeposit('${d.id}')">+ Top Up</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editDeposit(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markDepositSaved('${d.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteDeposit('${d.id}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function searchDepositsLive(){
+  const searchTerm = document.getElementById('depositSearchCustomer').value.toLowerCase().trim();
+  const resultsDiv = document.getElementById('depositSearchResults');
+ 
+  if(searchTerm.length < 2) {
+    resultsDiv.style.display = 'none';
+    return;
+  }
+ 
+  // Get unique customers with deposits
+  const customers = [...new Set(state.deposits.map(d => d.client))];
+  const matchingCustomers = customers.filter(customer =>
+    customer.toLowerCase().includes(searchTerm)
+  );
+ 
+  if(matchingCustomers.length === 1) {
+    const customer = matchingCustomers[0];
+    const balance = getCustomerBalance(customer);
+    const deposits = getCustomerDeposits(customer);
+   
+    document.getElementById('foundCustomerInfo').innerHTML = `
+      <p><strong>Customer:</strong> ${customer}</p>
+      <p><strong>Total Deposits:</strong> ${deposits.length}</p>
+      <p><strong>Last Deposit:</strong> ${deposits.length > 0 ? deposits[deposits.length - 1].date : 'N/A'}</p>
+    `;
+    document.getElementById('balanceDisplay').innerHTML = `Available Balance: ${fmt(balance)}`;
+    resultsDiv.style.display = 'block';
+  } else {
+    resultsDiv.style.display = 'none';
+  }
+}
+
+function searchDeposits(){
+  const searchTerm = document.getElementById('depositSearchCustomer').value.toLowerCase();
+  if(!searchTerm) {
+    renderDeposits();
+    return;
+  }
+ 
+  const tbody=document.querySelector('#depositsTable tbody'); tbody.innerHTML='';
+  const filteredDeposits = state.deposits.filter(d =>
+    d.client.toLowerCase().includes(searchTerm)
+  );
+ 
+  filteredDeposits.forEach((d, index) => {
+    const tr=document.createElement('tr');
+    const isSaved = d.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>'
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    const remainingBalance = Number(d.amount) - Number(d.used || 0);
+   
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${d.item || 'N/A'}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
+      <td>
+        <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
+        ${remainingBalance > 0 ? `<button class="btn btn-secondary small" onclick="topUpDeposit('${d.id}')">+ Top Up</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editDeposit(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markDepositSaved('${d.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteDeposit('${d.id}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function depositForCustomer(){
+  const searchTerm = document.getElementById('depositSearchCustomer').value.trim();
+  if(!searchTerm) {
+    alert('Please search for a customer first');
+    return;
+  }
+ 
+  openDepositModal();
+  document.getElementById('depositClient').value = searchTerm;
+  document.getElementById('depositCustomerId').value = searchTerm; // Store customer ID for reference
+}
+
+function openDepositModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to add deposits'); return; }
+  document.getElementById('depositForm').reset();
+  document.getElementById('depositId').value='';
+  document.getElementById('depositCustomerId').value='';
+  document.getElementById('depositDate').value = new Date().toISOString().slice(0,10);
+  populateClientSuggestions();
+  document.getElementById('depositModal').style.display='flex';
+}
+function closeDepositModal(){document.getElementById('depositModal').style.display='none';}
+
+function topUpDeposit(id){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to top up deposits'); return; }
+  const deposit = state.deposits.find(d => d.id === id);
+  if(!deposit) return alert('Deposit not found');
+ 
+  document.getElementById('topUpDepositId').value = deposit.id;
+  document.getElementById('topUpCustomer').value = deposit.client;
+  document.getElementById('topUpCurrentBalance').value = fmt(Number(deposit.amount) - Number(deposit.used || 0));
+  document.getElementById('topUpAmount').value = '';
+  document.getElementById('topUpModal').style.display = 'flex';
+}
+
+function closeTopUpModal(){document.getElementById('topUpModal').style.display='none';}
+
+document.getElementById('topUpForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const depositId = document.getElementById('topUpDepositId').value;
+  const topUpAmount = Number(document.getElementById('topUpAmount').value);
+ 
+  const deposit = state.deposits.find(d => d.id === depositId);
+  if(deposit && topUpAmount > 0) {
+    deposit.amount = Number(deposit.amount) + topUpAmount;
+    deposit.remainingBalance = Number(deposit.amount) - Number(deposit.used || 0);
+    save();
+    renderDeposits();
+    closeTopUpModal();
+    alert(`Successfully added ${fmt(topUpAmount)} to ${deposit.client}'s account`);
+  }
+});
+
+document.getElementById('depositForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const id=document.getElementById('depositId').value;
+  const amount = Number(document.getElementById('depositAmount').value);
+  const used = Number(document.getElementById('depositUsed').value || 0);
+  const clientName = document.getElementById('depositClient').value.trim();
+ 
+  // Check if this is a deposit for an existing customer (from search)
+  const existingCustomer = document.getElementById('depositCustomerId').value.trim();
+ 
+  const dep={
+    id: id || idf(),
+    date:document.getElementById('depositDate').value,
+    client: clientName,
+    item:document.getElementById('depositItem').value,
+    amount: amount,
+    used: used,
+    remainingBalance: amount - used,
+    saved: false
+  };
+ 
+  if(id){
+    const index=state.deposits.findIndex(x=>x.id===id);
+    if(index >= 0) state.deposits[index]=dep;
+  } else {
+    state.deposits.push(dep);
+  }
+ 
+  save();
+  renderDeposits();
+  renderRecords();
+  closeDepositModal();
+ 
+  // Hide search results after successful deposit
+  document.getElementById('depositSearchResults').style.display = 'none';
+  document.getElementById('depositSearchCustomer').value = '';
+});
+
+function editDeposit(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit deposits'); return; }
+  const d = state.deposits[index];
+  if(!d || d.saved) return alert('Cannot edit saved deposits');
+ 
+  document.getElementById('depositId').value = d.id;
+  document.getElementById('depositDate').value = d.date;
+  document.getElementById('depositClient').value = d.client;
+  document.getElementById('depositItem').value = d.item || '';
+  document.getElementById('depositAmount').value = d.amount;
+  document.getElementById('depositUsed').value = d.used || 0;
+  populateClientSuggestions();
+  document.getElementById('depositModal').style.display='flex';
+}
+
+function deleteDeposit(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete deposits'); return; }
+  const dep = state.deposits.find(d=>d.id===id);
+  if(dep && dep.saved) return alert('Cannot delete saved deposits');
+  if(confirm('Delete deposit?')){
+    state.deposits=state.deposits.filter(d=>d.id!==id);
+    save();renderDeposits();renderRecords();
+  }
+}
+
+function adminDeleteDeposit(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(confirm('Admin delete this saved deposit?')){
+    state.deposits=state.deposits.filter(d=>d.id!==id);
+    save();renderDeposits();renderRecords();
+  }
+}
+
+function markDepositSaved(id){
+  const dep = state.deposits.find(d => d.id === id);
+  if(dep) {
+    dep.saved = true;
+    save();
+    renderDeposits();
+  }
+}
+
+function printDeposit(id){
+  const d=state.deposits.find(d=>d.id===id);
+  if(!d) return alert('Deposit not found');
+  let html = companyHeaderHTML();
+  html += `<h3 style="text-align:center">Customer Deposit Statement</h3>`;
+  html += `<p><strong>Client:</strong> ${d.client}<br><strong>Date:</strong> ${d.date}</p>`;
+  html += `<p><strong>Item/Service:</strong> ${d.item || 'N/A'}</p>`;
+  html += `<table border="1" style="width:100%;border-collapse:collapse;">`;
+  html += `<tr><th>Description</th><th>Amount</th></tr>`;
+  html += `<tr><td>Deposit Amount</td><td>${fmt(d.amount)}</td></tr>`;
+  html += `<tr><td>Amount Used</td><td>${fmt(d.used || 0)}</td></tr>`;
+  html += `<tr><td><strong>Current Balance</strong></td><td><strong>${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}</strong></td></tr>`;
+  html += `</table>`;
+  html += `<p style="margin-top:20px;"><em>This statement shows your current deposit balance. Please keep this for your records.</em></p>`;
+  html += builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+function printDeposits(){
+  const html=companyHeaderHTML()+'<h3>Deposits Report</h3>'+document.querySelector('#depositsTable').outerHTML + builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+/* ===========================
+   RECORDS (with pagination + filters + tax invoice + prepaid sales)
+   =========================== */
+function buildRecordsArray(){
+  const arr = [];
+  // Sales
+  state.sales.forEach(s=>{
+    arr.push({
+      type: 'Sale',
+      date: s.date,
+      ref: s.id,
+      details: `Customer: ${s.customer}`,
+      amount: s.total,
+      meta: s.items ? s.items.map(i=>`${i.name} x${i.qty}`).join(', ') : 'No items'
+    });
+  });
+  // Prepaid Sales
+  state.prepaidSales.forEach(s=>{
+    arr.push({
+      type: 'Prepaid Sale',
+      date: s.date,
+      ref: s.id,
+      details: `Customer: ${s.customer} (Prepaid)`,
+      amount: s.total,
+      meta: s.items ? s.items.map(i=>`${i.name} x${i.qty}`).join(', ') + ` | Used from balance: ${fmt(s.usedFromBalance)}` : 'No items'
+    });
+  });
+  // Tax Invoices
+  state.taxInvoices.forEach(t=>{
+    arr.push({
+      type: 'Tax Invoice',
+      date: t.date,
+      ref: t.id,
+      details: `Invoice: ${t.invoiceNumber} - Customer: ${t.customer}`,
+      amount: t.grandTotal,
+      meta: `VAT: ${fmt(t.vatAmount)}, Items: ${t.items.length}`
+    });
+  });
+  // Expenses
+  state.expenses.forEach(e=>{
+    arr.push({
+      type: 'Expense',
+      date: e.date,
+      ref: e.id,
+      details: `${e.category} - ${e.description}`,
+      amount: Number(e.amount),
+      meta: e.notes||''
+    });
+  });
+  // Inventory
+  state.inventory.forEach(i=>{
+    arr.push({
+      type: 'Inventory',
+      date: i.created || new Date().toISOString().slice(0,10),
+      ref: i.id,
+      details: `${i.name} (${i.category||''})`,
+      amount: i.qty,
+      meta: `Cost: ${fmt(i.cost)} Supplier:${i.supplier||''}`
+    });
+  });
+  // Deposits
+  state.deposits.forEach(d=>{
+    arr.push({
+      type: 'Deposit',
+      date: d.date,
+      ref: d.id,
+      details: `Client: ${d.client}, Item: ${d.item || 'N/A'}`,
+      amount: d.amount,
+      meta: `Used: ${fmt(d.used || 0)}, Balance: ${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}`
+    });
+  });
+  // Sort desc by date
+  return arr.sort((a,b)=> a.date < b.date ? 1 : (a.date > b.date ? -1 : 0));
+}
+
+/* Pagination state */
+let recordsPage = 1;
+function renderRecords(list){
+  if(!hasPermission('canViewRecords')) return;
+  const tbody=document.querySelector('#recordsTable tbody'); tbody.innerHTML='';
+  const rowsAll = list || buildRecordsArray();
+  let rows = rowsAll;
+  const typeFilter = document.getElementById('recordsType') ? document.getElementById('recordsType').value : '';
+  const textFilter = document.getElementById('recordsText') ? document.getElementById('recordsText').value.toLowerCase() : '';
+  if(typeFilter) rows = rows.filter(r=>r.type === typeFilter);
+  if(textFilter) rows = rows.filter(r=> (r.details+' '+r.ref+' '+r.meta).toLowerCase().includes(textFilter));
+  const from=document.getElementById('recordsFrom') ? document.getElementById('recordsFrom').value : '';
+  const to=document.getElementById('recordsTo') ? document.getElementById('recordsTo').value : '';
+  rows = rows.filter(r=> (!from || r.date >= from) && (!to || r.date <= to));
+
+  const pageSize = Number(document.getElementById('recordsPageSize').value||10);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  if(recordsPage > totalPages) recordsPage = totalPages;
+  const start = (recordsPage-1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
+
+  let totalMoney = 0;
+  let totalQty = 0;
+  pageRows.forEach(r=>{
+    const tr=document.createElement('tr');
+    let amountDisplay = '';
+    if(r.type === 'Sale' || r.type === 'Prepaid Sale' || r.type === 'Expense' || r.type === 'Deposit' || r.type === 'Tax Invoice') {
+      amountDisplay = fmt(r.amount);
+      totalMoney += Number(r.amount||0);
+    } else {
+      amountDisplay = r.amount;
+      totalQty += Number(r.amount||0);
+    }
+    tr.innerHTML = `<td>${r.type}</td><td>${r.date}</td><td>${r.ref}</td><td>${r.details}<div style="font-size:0.9em;color:#cbd5e1;margin-top:4px">${r.meta||''}</div></td><td>${amountDisplay}</td>
+      <td>
+        ${r.type === 'Sale' ? `<button class="btn btn-secondary small" onclick="printSale('${r.ref}', 'Regular')">🖨️</button>` : ''}
+        ${r.type === 'Prepaid Sale' ? `<button class="btn btn-secondary small" onclick="printSale('${r.ref}', 'Prepaid')">🖨️</button>` : ''}
+        ${r.type === 'Tax Invoice' ? `<button class="btn btn-secondary small" onclick="printTaxInvoice('${r.ref}')">🖨️</button>` : ''}
+        ${r.type === 'Expense' ? `<button class="btn btn-secondary small" onclick="printExpense('${r.ref}')">🖨️</button>` : ''}
+        ${r.type === 'Inventory' ? `<button class="btn btn-secondary small" onclick="printInventoryItem('${r.ref}')">🖨️</button>` : ''}
+        ${r.type === 'Deposit' ? `<button class="btn btn-secondary small" onclick="printDeposit('${r.ref}')">🖨️</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' ? `<button class="btn btn-danger small" onclick="adminDeleteRecord('${r.type}','${r.ref}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  const summary = `Total on page (money): ${fmt(totalMoney)} — Total inventory qty on page: ${totalQty} — Showing ${pageRows.length} of ${rows.length} records`;
+  document.getElementById('recordsSummary').innerText = summary;
+  document.getElementById('recordsPagerInfo').innerText = `Page ${recordsPage} / ${totalPages}`;
+}
+
+function searchRecords(){ recordsPage = 1; renderRecords(); }
+function printRecords(){
+  const html=companyHeaderHTML()+'<h3>Company Records (current page)</h3>'+document.querySelector('#recordsTable').outerHTML + builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+function adminDeleteRecord(type, ref){
+  const user = currentUser();
+  if(!user || user.role !== 'admin'){ alert('Admin access required'); return; }
+  if(!confirm(`Admin delete this ${type}?`)) return;
+ 
+  if(type === 'Sale') adminDeleteSale(ref, 'Regular');
+  else if(type === 'Prepaid Sale') adminDeleteSale(ref, 'Prepaid');
+  else if(type === 'Tax Invoice') adminDeleteTaxInvoice(ref);
+  else if(type === 'Expense') adminDeleteExpense(ref);
+  else if(type === 'Inventory') adminDeleteInventory(ref);
+  else if(type === 'Deposit') adminDeleteDeposit(ref);
+  renderAll();
+}
+
+/* helper prints */
+function printExpense(id){
+  const e = state.expenses.find(x=>x.id===id);
+  if(!e) return alert('Expense not found');
+  let html = companyHeaderHTML();
+  html += `<h3>Expense Receipt</h3><p>${e.date}</p><p>${e.category} - ${e.description}</p><p>Amount: ${fmt(e.amount)}</p>`;
+  html += builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+function printInventoryItem(id){
+  const i=state.inventory.find(x=>x.id===id);
+  if(!i) return alert('Item not found');
+  let html = companyHeaderHTML();
+  html += `<h3>Inventory Item</h3><p>${i.name}</p><p>Category: ${i.category||'N/A'}</p><p>Qty: ${i.qty}</p><p>Cost: ${fmt(i.cost)}</p>`;
+  html += builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+/* pagination helpers */
+function recordsNext(){ recordsPage++; renderRecords(); }
+function recordsPrev(){ if(recordsPage>1) recordsPage--; renderRecords(); }
+function recordsJump(){ const v = Number(document.getElementById('recordsGoto').value||1); recordsPage = Math.max(1, v); renderRecords(); }
+
+/* ===========================
+   USERS / SETTINGS (enhanced permissions)
+   =========================== */
+function openUserModal(){
+  if(!hasPermission('canManageUsers')) { alert('You do not have permission to manage users'); return; }
+  document.getElementById('userForm').reset();
+  document.getElementById('userId').value='';
+  populateUsersList();
+  document.getElementById('userModal').style.display='flex';
+}
+function closeUserModal(){ document.getElementById('userModal').style.display='none'; }
+
+function populateUsersList(){
+  const el = document.getElementById('usersList'); el.innerHTML='';
+  state.users.forEach(u=>{
+    const div = document.createElement('div'); div.style.display='flex'; div.style.justifyContent='space-between'; div.style.padding='6px 0';
+    const left = document.createElement('div'); left.innerHTML = `<strong>${u.username}</strong> <span class="muted">(${u.role})</span>`;
+    const right = document.createElement('div');
+    const edit = document.createElement('button'); edit.className='btn small'; edit.textContent='Edit'; edit.onclick=()=>{ editUser(u.id); };
+    const del = document.createElement('button'); del.className='btn small'; del.textContent='Delete'; del.onclick=()=>{ if(confirm('Delete user?')){ state.users = state.users.filter(x=>x.id!==u.id); save(); populateUsersList(); } };
+    right.appendChild(edit); right.appendChild(del);
+    div.appendChild(left); div.appendChild(right);
+    el.appendChild(div);
+  });
+}
+
+function editUser(id){
+  const u = state.users.find(x=>x.id===id); if(!u) return;
+  document.getElementById('userId').value = u.id;
+  document.getElementById('userName').value = u.username;
+  document.getElementById('userPass').value = u.password;
+  document.getElementById('userRole').value = u.role;
+ 
+  // Set permission checkboxes
+  const permissions = u.permissions || {};
+  document.getElementById('userCanViewSales').checked = permissions.canViewSales !== false;
+  document.getElementById('userCanViewInventory').checked = permissions.canViewInventory !== false;
+  document.getElementById('userCanViewExpenses').checked = permissions.canViewExpenses !== false;
+  document.getElementById('userCanViewEmployees').checked = !!permissions.canViewEmployees;
+  document.getElementById('userCanViewSuppliers').checked = !!permissions.canViewSuppliers;
+  document.getElementById('userCanViewDeposits').checked = !!permissions.canViewDeposits;
+  document.getElementById('userCanViewTaxInvoice').checked = !!permissions.canViewTaxInvoice;
+  document.getElementById('userCanViewRecords').checked = !!permissions.canViewRecords;
+  document.getElementById('userCanViewSettings').checked = !!permissions.canViewSettings;
+  document.getElementById('userCanCreateSales').checked = permissions.canCreateSales !== false;
+  document.getElementById('userCanEditData').checked = !!permissions.canEditData;
+  document.getElementById('userCanDeleteData').checked = !!permissions.canDeleteData;
+  document.getElementById('userCanManageUsers').checked = !!permissions.canManageUsers;
+  document.getElementById('userCanSaveSettings').checked = !!permissions.canSaveSettings;
+ 
+  document.getElementById('userModal').style.display = 'flex';
+}
+
+document.getElementById('userForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  if(!hasPermission('canSaveSettings')) { alert('You do not have permission to save user settings'); return; }
+ 
+  const id = document.getElementById('userId').value || idf();
+  const username = document.getElementById('userName').value.trim();
+  const password = document.getElementById('userPass').value;
+  const role = document.getElementById('userRole').value;
+ 
+  // Get all permissions
+  const permissions = {
+    canViewSales: document.getElementById('userCanViewSales').checked,
+    canViewInventory: document.getElementById('userCanViewInventory').checked,
+    canViewExpenses: document.getElementById('userCanViewExpenses').checked,
+    canViewEmployees: document.getElementById('userCanViewEmployees').checked,
+    canViewSuppliers: document.getElementById('userCanViewSuppliers').checked,
+    canViewDeposits: document.getElementById('userCanViewDeposits').checked,
+    canViewTaxInvoice: document.getElementById('userCanViewTaxInvoice').checked,
+    canViewRecords: document.getElementById('userCanViewRecords').checked,
+    canViewSettings: document.getElementById('userCanViewSettings').checked,
+    canCreateSales: document.getElementById('userCanCreateSales').checked,
+    canEditData: document.getElementById('userCanEditData').checked,
+    canDeleteData: document.getElementById('userCanDeleteData').checked,
+    canManageUsers: document.getElementById('userCanManageUsers').checked,
+    canSaveSettings: document.getElementById('userCanSaveSettings').checked
+  };
+ 
+  if(state.users.some(u=>u.username === username && u.id !== id)){ alert('Username already exists'); return; }
+  const existingIndex = state.users.findIndex(u=>u.id===id);
+  const userObj = {id, username, password, role, permissions};
+  if(existingIndex >= 0) state.users[existingIndex] = userObj; else state.users.push(userObj);
+  save(); populateUsersList(); closeUserModal();
+  updateUIForAuth(); // Refresh UI to reflect permission changes
+});
+
+/* ===========================
+   COMPANY & BUILDER SETTINGS
+   =========================== */
+document.getElementById('companyForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  if(!hasPermission('canSaveSettings')) { alert('You do not have permission to save company settings'); return; }
+ 
+  state.company = {
+    name: document.getElementById('companyName').value,
+    location: document.getElementById('companyLocation').value,
+    box: document.getElementById('companyBox').value,
+    tel: document.getElementById('companyTel').value,
+    email: document.getElementById('companyEmail').value
+  };
+  save();
+  alert('Company details saved successfully!');
+});
+
+document.getElementById('builderForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  if(!hasPermission('canSaveSettings')) { alert('You do not have permission to save builder settings'); return; }
+ 
+  state.builder = {
+    name: document.getElementById('builderName').value,
+    contact: document.getElementById('builderContact').value,
+    website: document.getElementById('builderWebsite').value
+  };
+  save();
+  alert('Builder details saved successfully!');
+});
+
+/* SETTINGS area render (Permission-based) */
+function renderSettingsAdmin(){
+  if(!hasPermission('canViewSettings')) return;
+  const container = document.getElementById('settingsAdminArea'); container.innerHTML='';
+  const user = currentUser();
+ 
+  if(hasPermission('canManageUsers')){
+    container.innerHTML += '<p>Configure system preferences here.</p>';
+    const btn = document.createElement('button'); btn.className='btn btn-primary'; btn.textContent='Manage Users'; btn.onclick = openUserModal;
+    container.appendChild(btn);
+  } else {
+    container.innerHTML += '<p class="muted">Contact administrator for user management access.</p>';
+  }
+ 
+  // Load company settings
+  if(state.company){
+    document.getElementById('companyName').value = state.company.name || '';
+    document.getElementById('companyLocation').value = state.company.location || '';
+    document.getElementById('companyBox').value = state.company.box || '';
+    document.getElementById('companyTel').value = state.company.tel || '';
+    document.getElementById('companyEmail').value = state.company.email || '';
+  }
+ 
+  // Load builder settings
+  if(state.builder){
+    document.getElementById('builderName').value = state.builder.name || '';
+    document.getElementById('builderContact').value = state.builder.contact || '';
+    document.getElementById('builderWebsite').value = state.builder.website || '';
+  }
+ 
+  // Disable save buttons if user doesn't have permission
+  const saveCompanyBtn = document.getElementById('saveCompanyBtn');
+  const saveBuilderBtn = document.getElementById('saveBuilderBtn');
+  if(!hasPermission('canSaveSettings')) {
+    saveCompanyBtn.disabled = true;
+    saveBuilderBtn.disabled = true;
+    saveCompanyBtn.textContent = 'No Permission';
+    saveBuilderBtn.textContent = 'No Permission';
+  } else {
+    saveCompanyBtn.disabled = false;
+    saveBuilderBtn.disabled = false;
+    saveCompanyBtn.textContent = 'Save Company';
+    saveBuilderBtn.textContent = 'Save Builder Info';
+  }
+}
+
+/* ===========================
+   AUTH UI updates & helpers
+   =========================== */
+function updateUIForAuth(){
+  const user = currentUser();
+  document.getElementById('currentUserDisplay').innerText = user ? `Signed in as: ${user.username} (${user.role})` : 'Not signed in';
+  document.getElementById('systemStatus').innerText = user ? 'Online' : 'Offline';
+ 
+  // Update nav items visibility and state based on permissions
+  document.querySelectorAll("#navList .nav-item").forEach(nav=>{
+    const view = nav.dataset.view;
+    const permissionMap = {
+      'dashboard': true, // Everyone can access dashboard
+      'sales': 'canViewSales',
+      'inventory': 'canViewInventory',
+      'expenses': 'canViewExpenses',
+      'employees': 'canViewEmployees',
+      'suppliers': 'canViewSuppliers',
+      'deposits': 'canViewDeposits',
+      'tax-invoice': 'canViewTaxInvoice',
+      'records': 'canViewRecords',
+      'settings': 'canViewSettings'
+    };
+   
+    const requiredPermission = permissionMap[view];
+    if(requiredPermission === true || hasPermission(requiredPermission)) {
+      nav.style.display = 'flex';
+      nav.classList.remove('disabled');
+    } else {
+      nav.style.display = 'flex'; // Still show but disabled
+      nav.classList.add('disabled');
+    }
+  });
+ 
+  if(!user) showLogin(); else hideLogin();
+  const qa = document.getElementById('quickUserActions'); qa.innerHTML='';
+  if(user){
+    const profileBtn = document.createElement('button'); profileBtn.className='btn small'; profileBtn.textContent='Profile';
+    profileBtn.onclick = ()=>{
+      const perms = user.permissions || {};
+      const permList = Object.keys(perms).filter(k=>perms[k]).join(', ');
+      alert(`Profile: ${user.username} (${user.role})\nPermissions: ${permList || 'None'}`);
+    };
+    qa.appendChild(profileBtn);
+  }
+}
+
+/* ===========================
+   RENDER ALL (initial)
+   =========================== */
+function renderAll(){
+  renderSales();
+  renderInventory();
+  renderTaxInvoices();
+  renderExpenses();
+  renderEmployees();
+  renderSuppliers();
+  renderDeposits();
+  renderRecords();
+  renderSettingsAdmin();
+  updateUIForAuth();
+  updateDashboard();
+}
+
+// Initialize
+renderAll();
+updateLoginBranding();
+if(!currentUser()) showLogin(); else hideLogin();
+</script>
+</body>
+</html>
