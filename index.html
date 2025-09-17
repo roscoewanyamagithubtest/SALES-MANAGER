@@ -51,6 +51,7 @@
     .company-branding{text-align:center;margin:10px 0;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;}
     .deposit-customer{background:rgba(34,197,94,0.1);padding:10px;border-radius:8px;margin-bottom:10px;border-left:4px solid #22c55e;}
     .balance-info{font-weight:bold;color:#22c55e;margin:10px 0;padding:10px;background:rgba(34,197,94,0.1);border-radius:8px;}
+    .item-price-info{background:rgba(6,182,212,0.1);padding:8px;border-radius:6px;margin:5px 0;color:#06b6d4;font-weight:bold;}
     @media(max-width:768px){
       .sidebar{width:70px;padding:10px;}
       .sidebar .logo h1,.sidebar .nav-item div{display:none;}
@@ -229,7 +230,7 @@
       </div>
       <table class="table" id="depositsTable">
         <thead>
-          <tr><th>Date</th><th>Client</th><th>Item</th><th>Amount</th><th>Balance</th><th>Status</th><th>Actions</th></tr>
+          <tr><th>Date</th><th>Client</th><th>Item</th><th>Agreed Price</th><th>Deposit Amount</th><th>Balance</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -574,7 +575,7 @@
   </div>
 </div>
 
-<!-- Deposit Modal -->
+<!-- Enhanced Deposit Modal -->
 <div id="depositModal" class="modal">
   <div class="modal-box">
     <h2>Add Deposit</h2>
@@ -585,11 +586,29 @@
       <label>Client</label>
       <input id="depositClient" required list="clientSuggestions"/>
       <datalist id="clientSuggestions"></datalist>
-      <label>Item</label><input id="depositItem" required placeholder="What item/service is this deposit for?"/>
-      <label>Amount</label><input type="number" id="depositAmount" required/>
-      <label>Amount Used (optional)</label><input type="number" id="depositUsed" value="0" placeholder="Amount used from deposit"/>
+      
+      <label>Select Item from Inventory</label>
+      <select id="depositItemSelect" required onchange="updateDepositAmount()">
+        <option value="">-- Select an item --</option>
+      </select>
+      
+      <div id="selectedItemInfo" class="item-price-info" style="display:none;">
+        <div>Selected Item: <span id="selectedItemName"></span></div>
+        <div>Agreed Price: <span id="selectedItemPrice"></span></div>
+        <div>Category: <span id="selectedItemCategory"></span></div>
+      </div>
+      
+      <label>Agreed Full Price (auto-filled from inventory)</label>
+      <input type="number" id="depositAgreedPrice" readonly style="background:#f5f5f5;"/>
+      
+      <label>Deposit Amount (how much client paid)</label>
+      <input type="number" id="depositAmount" required placeholder="Enter deposit amount"/>
+      
+      <label>Amount Used from Deposit (optional)</label>
+      <input type="number" id="depositUsed" value="0" placeholder="Amount already used from this deposit"/>
+      
       <div style="text-align:right;margin-top:10px;">
-        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="submit" class="btn btn-primary">Save Deposit</button>
         <button type="button" class="btn btn-secondary" onclick="closeDepositModal()">Cancel</button>
       </div>
     </form>
@@ -617,7 +636,7 @@
 /* ===========================
    STORAGE & INITIAL STATE
    =========================== */
-const STORAGE_KEY = "sales_system_data_v6_enhanced_prepaid";
+const STORAGE_KEY = "sales_system_data_v7_enhanced_deposits";
 const fmt = n => "UGX " + Number(n||0).toLocaleString();
 const idf = () => Math.random().toString(36).substr(2,9);
 
@@ -852,6 +871,47 @@ function useCustomerBalance(customerName, amount) {
 }
 
 /* ===========================
+   ENHANCED DEPOSIT FUNCTIONS
+   =========================== */
+function populateInventoryInDeposit(){
+  const select = document.getElementById('depositItemSelect');
+  select.innerHTML = '<option value="">-- Select an item --</option>';
+  
+  state.inventory.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.id;
+    option.dataset.cost = item.cost;
+    option.dataset.name = item.name;
+    option.dataset.category = item.category || 'N/A';
+    option.textContent = `${item.name} - ${fmt(item.cost)} (${item.category || 'N/A'})`;
+    select.appendChild(option);
+  });
+}
+
+function updateDepositAmount(){
+  const select = document.getElementById('depositItemSelect');
+  const selectedOption = select.options[select.selectedIndex];
+  
+  if(selectedOption.value) {
+    const itemName = selectedOption.dataset.name;
+    const itemCost = selectedOption.dataset.cost;
+    const itemCategory = selectedOption.dataset.category;
+    
+    // Show item info
+    document.getElementById('selectedItemInfo').style.display = 'block';
+    document.getElementById('selectedItemName').textContent = itemName;
+    document.getElementById('selectedItemPrice').textContent = fmt(itemCost);
+    document.getElementById('selectedItemCategory').textContent = itemCategory;
+    
+    // Set agreed price
+    document.getElementById('depositAgreedPrice').value = itemCost;
+  } else {
+    document.getElementById('selectedItemInfo').style.display = 'none';
+    document.getElementById('depositAgreedPrice').value = '';
+  }
+}
+
+/* ===========================
    SALES (with save status tracking)
    =========================== */
 function renderSales(){
@@ -877,7 +937,6 @@ function renderSales(){
         <button class="btn btn-secondary small" onclick="printSale('${s.id}', '${s.type}')">🖨️</button>
         ${!isSaved && hasPermission('canEditData') && s.type === 'Regular' ? `<button class="btn btn-primary small" onclick="editSale(${state.sales.findIndex(sale => sale.id === s.id)})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteSale('${s.id}', '${s.type}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markSaleSaved('${s.id}', '${s.type}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteSale('${s.id}', '${s.type}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
@@ -974,7 +1033,7 @@ document.getElementById('saleForm').addEventListener('submit', e=>{
   const pctAmount = total * (pct/100);
   const final = Math.max(0, total - flat - pctAmount);
   
-  const saleData = {id:saleId || idf(), date:new Date().toISOString().slice(0,10), customer, contact, items, total:final, meta:{flatDiscount:flat, pctDiscount:pct}, saved:false};
+  const saleData = {id:saleId || idf(), date:new Date().toISOString().slice(0,10), customer, contact, items, total:final, meta:{flatDiscount:flat, pctDiscount:pct}, saved:true}; // Auto-save
   
   if(saleId){
     // Editing existing
@@ -990,7 +1049,7 @@ document.getElementById('saleForm').addEventListener('submit', e=>{
 function editSale(index){
   if(!hasPermission('canEditData')) { alert('You do not have permission to edit sales'); return; }
   const s = state.sales[index];
-  if(!s || s.saved) return alert('Cannot edit saved sales');
+  if(!s) return alert('Sale not found');
   
   document.getElementById('saleId').value = s.id;
   document.getElementById('customerName').value = s.customer;
@@ -1021,7 +1080,6 @@ function deleteSale(id, type){
     sale = state.sales.find(s=>s.id===id);
   }
   
-  if(sale && sale.saved) return alert('Cannot delete saved sales');
   if(!confirm('Delete this sale?')) return;
   
   if(sale && sale.items){
@@ -1066,21 +1124,6 @@ function adminDeleteSale(id, type){
   }
   
   save(); renderSales(); renderRecords(); renderInventory();
-}
-
-function markSaleSaved(id, type){
-  let sale;
-  if (type === 'Prepaid') {
-    sale = state.prepaidSales.find(s => s.id === id);
-  } else {
-    sale = state.sales.find(s => s.id === id);
-  }
-  
-  if(sale) {
-    sale.saved = true;
-    save();
-    renderSales();
-  }
 }
 
 function printSale(id, type){
@@ -1323,7 +1366,7 @@ document.getElementById('prepaidSaleForm').addEventListener('submit', e => {
     items,
     total,
     usedFromBalance: total,
-    saved: false
+    saved: true // Auto-save
   };
   
   state.prepaidSales.push(prepaidSaleData);
@@ -1371,7 +1414,6 @@ function renderTaxInvoices(){
         <button class="btn btn-secondary small" onclick="printTaxInvoice('${t.id}')">🖨️</button>
         ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editTaxInvoice(${index})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteTaxInvoice('${t.id}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markTaxInvoiceSaved('${t.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteTaxInvoice('${t.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
@@ -1529,7 +1571,7 @@ document.getElementById('taxInvoiceForm').addEventListener('submit', e=>{
     subtotal: totals.subtotal,
     vatAmount: totals.totalVAT,
     grandTotal: totals.grandTotal,
-    saved: false
+    saved: true // Auto-save
   };
   
   if(taxInvoiceId){
@@ -1545,7 +1587,7 @@ document.getElementById('taxInvoiceForm').addEventListener('submit', e=>{
 function editTaxInvoice(index){
   if(!hasPermission('canEditData')) { alert('You do not have permission to edit tax invoices'); return; }
   const t = state.taxInvoices[index];
-  if(!t || t.saved) return alert('Cannot edit saved tax invoices');
+  if(!t) return alert('Tax invoice not found');
   
   document.getElementById('taxInvoiceId').value = t.id;
   document.getElementById('taxInvoiceNumber').value = t.invoiceNumber;
@@ -1572,7 +1614,6 @@ function deleteTaxInvoice(id){
   if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete tax invoices'); return; }
   if(!confirm('Delete this tax invoice?')) return;
   const taxInvoice = state.taxInvoices.find(t=>t.id===id);
-  if(taxInvoice && taxInvoice.saved) return alert('Cannot delete saved tax invoices');
   
   if(taxInvoice && taxInvoice.items){
     taxInvoice.items.forEach(it=>{
@@ -1598,15 +1639,6 @@ function adminDeleteTaxInvoice(id){
   }
   state.taxInvoices = state.taxInvoices.filter(t=>t.id!==id);
   save(); renderTaxInvoices(); renderRecords(); renderInventory();
-}
-
-function markTaxInvoiceSaved(id){
-  const taxInvoice = state.taxInvoices.find(t => t.id === id);
-  if(taxInvoice) {
-    taxInvoice.saved = true;
-    save();
-    renderTaxInvoices();
-  }
 }
 
 function printTaxInvoice(id){
@@ -1657,7 +1689,6 @@ function renderInventory(){
       <td>
         ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editInventory(${index})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteInventory('${item.id}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markInventorySaved('${item.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteInventory('${item.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
@@ -1683,7 +1714,7 @@ document.getElementById('inventoryForm').addEventListener('submit', e=>{
     cost:Number(document.getElementById('itemCost').value),
     reorder:Number(document.getElementById('itemReorder').value),
     created,
-    saved: false
+    saved: true // Auto-save
   };
   
   if(id){
@@ -1698,7 +1729,7 @@ document.getElementById('inventoryForm').addEventListener('submit', e=>{
 function editInventory(index){
   if(!hasPermission('canEditData')) { alert('You do not have permission to edit inventory'); return; }
   const i = state.inventory[index];
-  if(!i || i.saved) return alert('Cannot edit saved items');
+  if(!i) return alert('Item not found');
   
   document.getElementById('itemId').value=i.id;
   document.getElementById('itemName').value=i.name;
@@ -1712,8 +1743,6 @@ function editInventory(index){
 
 function deleteInventory(id){
   if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete inventory'); return; }
-  const item = state.inventory.find(i=>i.id===id);
-  if(item && item.saved) return alert('Cannot delete saved items');
   if(confirm('Delete this item?')){
     state.inventory=state.inventory.filter(i=>i.id!==id);
     save();renderInventory();renderRecords();
@@ -1726,15 +1755,6 @@ function adminDeleteInventory(id){
   if(confirm('Admin delete this saved item?')){
     state.inventory=state.inventory.filter(i=>i.id!==id);
     save();renderInventory();renderRecords();
-  }
-}
-
-function markInventorySaved(id){
-  const item = state.inventory.find(i => i.id === id);
-  if(item) {
-    item.saved = true;
-    save();
-    renderInventory();
   }
 }
 
@@ -1762,7 +1782,6 @@ function renderExpenses(){
       <td>
         ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markExpenseSaved('${e.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteExpense('${e.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
@@ -1779,7 +1798,7 @@ function closeExpenseModal(){document.getElementById('expenseModal').style.displ
 document.getElementById('expenseForm').addEventListener('submit', e=>{
   e.preventDefault();
   const id = document.getElementById('expenseId').value;
-  const exp={id: id || idf(), date:document.getElementById('expenseDate').value, category:document.getElementById('expenseCategory').value, description:document.getElementById('expenseDesc').value, amount:Number(document.getElementById('expenseAmount').value), saved: false};
+  const exp={id: id || idf(), date:document.getElementById('expenseDate').value, category:document.getElementById('expenseCategory').value, description:document.getElementById('expenseDesc').value, amount:Number(document.getElementById('expenseAmount').value), saved: true}; // Auto-save
   
   if(id){
     const index = state.expenses.findIndex(e => e.id === id);
@@ -1793,7 +1812,7 @@ document.getElementById('expenseForm').addEventListener('submit', e=>{
 function editExpense(index){
   if(!hasPermission('canEditData')) { alert('You do not have permission to edit expenses'); return; }
   const e = state.expenses[index];
-  if(!e || e.saved) return alert('Cannot edit saved expenses');
+  if(!e) return alert('Expense not found');
   
   document.getElementById('expenseId').value = e.id;
   document.getElementById('expenseDate').value = e.date;
@@ -1805,8 +1824,6 @@ function editExpense(index){
 
 function deleteExpense(id){
   if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete expenses'); return; }
-  const expense = state.expenses.find(e=>e.id===id);
-  if(expense && expense.saved) return alert('Cannot delete saved expenses');
   if(!confirm('Delete this expense?')) return;
   state.expenses=state.expenses.filter(e=>e.id!==id);
   save(); renderExpenses(); renderRecords();
@@ -1818,15 +1835,6 @@ function adminDeleteExpense(id){
   if(!confirm('Admin delete this saved expense?')) return;
   state.expenses=state.expenses.filter(e=>e.id!==id);
   save(); renderExpenses(); renderRecords();
-}
-
-function markExpenseSaved(id){
-  const expense = state.expenses.find(e => e.id === id);
-  if(expense) {
-    expense.saved = true;
-    save();
-    renderExpenses();
-  }
 }
 
 function searchExpenses(){
@@ -1844,7 +1852,6 @@ function searchExpenses(){
       <td>
         ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markExpenseSaved('${e.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteExpense('${e.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
@@ -1874,7 +1881,6 @@ function renderEmployees(){
       <td>
         ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editEmployee(${index})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteEmployee('${e.id}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markEmployeeSaved('${e.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteEmployee('${e.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
@@ -1890,7 +1896,7 @@ function closeEmployeeModal(){document.getElementById('employeeModal').style.dis
 document.getElementById('employeeForm').addEventListener('submit', e=>{
   e.preventDefault();
   const id=document.getElementById('employeeId').value;
-  const emp={id: id || idf(), name:document.getElementById('employeeName').value, position:document.getElementById('employeePosition').value, email:document.getElementById('employeeEmail').value, phone:document.getElementById('employeePhone').value, saved: false};
+  const emp={id: id || idf(), name:document.getElementById('employeeName').value, position:document.getElementById('employeePosition').value, email:document.getElementById('employeeEmail').value, phone:document.getElementById('employeePhone').value, saved: true}; // Auto-save
   
   if(id){
     const index=state.employees.findIndex(x=>x.id===id);
@@ -1904,7 +1910,7 @@ document.getElementById('employeeForm').addEventListener('submit', e=>{
 function editEmployee(index){
   if(!hasPermission('canEditData')) { alert('You do not have permission to edit employees'); return; }
   const e = state.employees[index];
-  if(!e || e.saved) return alert('Cannot edit saved employees');
+  if(!e) return alert('Employee not found');
   
   document.getElementById('employeeId').value=e.id;
   document.getElementById('employeeName').value=e.name;
@@ -1916,8 +1922,6 @@ function editEmployee(index){
 
 function deleteEmployee(id){
   if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete employees'); return; }
-  const emp = state.employees.find(e=>e.id===id);
-  if(emp && emp.saved) return alert('Cannot delete saved employees');
   if(confirm('Delete employee?')){
     state.employees=state.employees.filter(e=>e.id!==id);
     save();renderEmployees();
@@ -1930,15 +1934,6 @@ function adminDeleteEmployee(id){
   if(confirm('Admin delete this saved employee?')){
     state.employees=state.employees.filter(e=>e.id!==id);
     save();renderEmployees();
-  }
-}
-
-function markEmployeeSaved(id){
-  const emp = state.employees.find(e => e.id === id);
-  if(emp) {
-    emp.saved = true;
-    save();
-    renderEmployees();
   }
 }
 
@@ -1964,7 +1959,6 @@ function renderSuppliers(){
       <td>
         ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editSupplier(${index})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteSupplier('${s.id}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markSupplierSaved('${s.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteSupplier('${s.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
@@ -1980,7 +1974,7 @@ function closeSupplierModal(){document.getElementById('supplierModal').style.dis
 document.getElementById('supplierForm').addEventListener('submit', e=>{
   e.preventDefault();
   const id=document.getElementById('supplierId').value;
-  const sup={id: id || idf(), name:document.getElementById('supplierName').value, contact:document.getElementById('supplierContact').value, email:document.getElementById('supplierEmail').value, saved: false};
+  const sup={id: id || idf(), name:document.getElementById('supplierName').value, contact:document.getElementById('supplierContact').value, email:document.getElementById('supplierEmail').value, saved: true}; // Auto-save
   
   if(id){
     const index=state.suppliers.findIndex(x=>x.id===id);
@@ -1994,7 +1988,7 @@ document.getElementById('supplierForm').addEventListener('submit', e=>{
 function editSupplier(index){
   if(!hasPermission('canEditData')) { alert('You do not have permission to edit suppliers'); return; }
   const s = state.suppliers[index];
-  if(!s || s.saved) return alert('Cannot edit saved suppliers');
+  if(!s) return alert('Supplier not found');
   
   document.getElementById('supplierId').value=s.id;
   document.getElementById('supplierName').value=s.name;
@@ -2005,8 +1999,6 @@ function editSupplier(index){
 
 function deleteSupplier(id){
   if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete suppliers'); return; }
-  const sup = state.suppliers.find(s=>s.id===id);
-  if(sup && sup.saved) return alert('Cannot delete saved suppliers');
   if(confirm('Delete supplier?')){
     state.suppliers=state.suppliers.filter(s=>s.id!==id);
     save();renderSuppliers();
@@ -2022,22 +2014,13 @@ function adminDeleteSupplier(id){
   }
 }
 
-function markSupplierSaved(id){
-  const sup = state.suppliers.find(s => s.id === id);
-  if(sup) {
-    sup.saved = true;
-    save();
-    renderSuppliers();
-  }
-}
-
 function printSuppliers(){
   const html=companyHeaderHTML()+'<h3>Suppliers Report</h3>'+document.querySelector('#suppliersTable').outerHTML + builderFooterHTML(); 
   const w=window.open(''); w.document.write(html); w.print();
 }
 
 /* ===========================
-   DEPOSITS (enhanced with search and top-up and prepaid functionality)
+   ENHANCED DEPOSITS (with inventory integration)
    =========================== */
 function populateClientSuggestions(){
   const datalist = document.getElementById('clientSuggestions');
@@ -2060,14 +2043,22 @@ function renderDeposits(){
                                 : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
     const remainingBalance = Number(d.amount) - Number(d.used || 0);
     
+    // Get item name from inventory if itemId exists
+    let itemDisplay = d.item || 'N/A';
+    if(d.itemId) {
+      const inventoryItem = state.inventory.find(item => item.id === d.itemId);
+      if(inventoryItem) {
+        itemDisplay = inventoryItem.name;
+      }
+    }
+    
     tr.className = isSaved ? 'saved' : 'unsaved';
-    tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${d.item || 'N/A'}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
+    tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${itemDisplay}</td><td>${fmt(d.agreedPrice || d.amount)}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
       <td>
         <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
         ${remainingBalance > 0 ? `<button class="btn btn-secondary small" onclick="topUpDeposit('${d.id}')">+ Top Up</button>` : ''}
         ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editDeposit(${index})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markDepositSaved('${d.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteDeposit('${d.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
@@ -2125,14 +2116,22 @@ function searchDeposits(){
                                 : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
     const remainingBalance = Number(d.amount) - Number(d.used || 0);
     
+    // Get item name from inventory if itemId exists
+    let itemDisplay = d.item || 'N/A';
+    if(d.itemId) {
+      const inventoryItem = state.inventory.find(item => item.id === d.itemId);
+      if(inventoryItem) {
+        itemDisplay = inventoryItem.name;
+      }
+    }
+    
     tr.className = isSaved ? 'saved' : 'unsaved';
-    tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${d.item || 'N/A'}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
+    tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${itemDisplay}</td><td>${fmt(d.agreedPrice || d.amount)}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
       <td>
         <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
         ${remainingBalance > 0 ? `<button class="btn btn-secondary small" onclick="topUpDeposit('${d.id}')">+ Top Up</button>` : ''}
         ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editDeposit(${index})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markDepositSaved('${d.id}')">Mark Saved</button>` : ''}
         ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteDeposit('${d.id}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
@@ -2148,7 +2147,7 @@ function depositForCustomer(){
   
   openDepositModal();
   document.getElementById('depositClient').value = searchTerm;
-  document.getElementById('depositCustomerId').value = searchTerm; // Store customer ID for reference
+  document.getElementById('depositCustomerId').value = searchTerm;
 }
 
 function openDepositModal(){
@@ -2158,6 +2157,8 @@ function openDepositModal(){
   document.getElementById('depositCustomerId').value='';
   document.getElementById('depositDate').value = new Date().toISOString().slice(0,10);
   populateClientSuggestions();
+  populateInventoryInDeposit();
+  document.getElementById('selectedItemInfo').style.display = 'none';
   document.getElementById('depositModal').style.display='flex';
 }
 function closeDepositModal(){document.getElementById('depositModal').style.display='none';}
@@ -2198,19 +2199,23 @@ document.getElementById('depositForm').addEventListener('submit', e=>{
   const amount = Number(document.getElementById('depositAmount').value);
   const used = Number(document.getElementById('depositUsed').value || 0);
   const clientName = document.getElementById('depositClient').value.trim();
+  const selectedItemId = document.getElementById('depositItemSelect').value;
+  const agreedPrice = Number(document.getElementById('depositAgreedPrice').value || 0);
   
-  // Check if this is a deposit for an existing customer (from search)
-  const existingCustomer = document.getElementById('depositCustomerId').value.trim();
+  // Get selected inventory item
+  const selectedItem = selectedItemId ? state.inventory.find(item => item.id === selectedItemId) : null;
   
   const dep={
     id: id || idf(),
-    date:document.getElementById('depositDate').value,
+    date: document.getElementById('depositDate').value,
     client: clientName,
-    item:document.getElementById('depositItem').value,
-    amount: amount,
+    item: selectedItem ? selectedItem.name : 'Custom Item', // Store item name for display
+    itemId: selectedItemId || null, // Store item ID for reference
+    agreedPrice: agreedPrice, // Store the agreed full price from inventory
+    amount: amount, // The actual deposit amount paid
     used: used,
     remainingBalance: amount - used,
-    saved: false
+    saved: true // Auto-save
   };
   
   if(id){
@@ -2228,27 +2233,36 @@ document.getElementById('depositForm').addEventListener('submit', e=>{
   // Hide search results after successful deposit
   document.getElementById('depositSearchResults').style.display = 'none';
   document.getElementById('depositSearchCustomer').value = '';
+  
+  alert('Deposit saved successfully!');
 });
 
 function editDeposit(index){
   if(!hasPermission('canEditData')) { alert('You do not have permission to edit deposits'); return; }
   const d = state.deposits[index];
-  if(!d || d.saved) return alert('Cannot edit saved deposits');
+  if(!d) return alert('Deposit not found');
   
   document.getElementById('depositId').value = d.id;
   document.getElementById('depositDate').value = d.date;
   document.getElementById('depositClient').value = d.client;
-  document.getElementById('depositItem').value = d.item || '';
   document.getElementById('depositAmount').value = d.amount;
   document.getElementById('depositUsed').value = d.used || 0;
+  document.getElementById('depositAgreedPrice').value = d.agreedPrice || d.amount;
+  
   populateClientSuggestions();
+  populateInventoryInDeposit();
+  
+  // Select the item if it exists
+  if(d.itemId) {
+    document.getElementById('depositItemSelect').value = d.itemId;
+    updateDepositAmount(); // This will show the item info
+  }
+  
   document.getElementById('depositModal').style.display='flex';
 }
 
 function deleteDeposit(id){
   if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete deposits'); return; }
-  const dep = state.deposits.find(d=>d.id===id);
-  if(dep && dep.saved) return alert('Cannot delete saved deposits');
   if(confirm('Delete deposit?')){
     state.deposits=state.deposits.filter(d=>d.id!==id);
     save();renderDeposits();renderRecords();
@@ -2264,29 +2278,34 @@ function adminDeleteDeposit(id){
   }
 }
 
-function markDepositSaved(id){
-  const dep = state.deposits.find(d => d.id === id);
-  if(dep) {
-    dep.saved = true;
-    save();
-    renderDeposits();
-  }
-}
-
 function printDeposit(id){
   const d=state.deposits.find(d=>d.id===id);
   if(!d) return alert('Deposit not found');
+  
+  // Get item name from inventory if itemId exists
+  let itemDisplay = d.item || 'N/A';
+  let agreedPriceDisplay = d.agreedPrice || d.amount;
+  if(d.itemId) {
+    const inventoryItem = state.inventory.find(item => item.id === d.itemId);
+    if(inventoryItem) {
+      itemDisplay = inventoryItem.name;
+      agreedPriceDisplay = inventoryItem.cost; // Use current cost from inventory
+    }
+  }
+  
   let html = companyHeaderHTML();
   html += `<h3 style="text-align:center">Customer Deposit Statement</h3>`;
   html += `<p><strong>Client:</strong> ${d.client}<br><strong>Date:</strong> ${d.date}</p>`;
-  html += `<p><strong>Item/Service:</strong> ${d.item || 'N/A'}</p>`;
+  html += `<p><strong>Item/Service:</strong> ${itemDisplay}</p>`;
   html += `<table border="1" style="width:100%;border-collapse:collapse;">`;
   html += `<tr><th>Description</th><th>Amount</th></tr>`;
-  html += `<tr><td>Deposit Amount</td><td>${fmt(d.amount)}</td></tr>`;
+  html += `<tr><td>Agreed Full Price</td><td>${fmt(agreedPriceDisplay)}</td></tr>`;
+  html += `<tr><td>Deposit Amount Paid</td><td>${fmt(d.amount)}</td></tr>`;
   html += `<tr><td>Amount Used</td><td>${fmt(d.used || 0)}</td></tr>`;
   html += `<tr><td><strong>Current Balance</strong></td><td><strong>${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}</strong></td></tr>`;
+  html += `<tr><td><strong>Amount Due on Completion</strong></td><td><strong>${fmt(agreedPriceDisplay - d.amount)}</strong></td></tr>`;
   html += `</table>`;
-  html += `<p style="margin-top:20px;"><em>This statement shows your current deposit balance. Please keep this for your records.</em></p>`;
+  html += `<p style="margin-top:20px;"><em>This statement shows your current deposit balance and amount due. Please keep this for your records.</em></p>`;
   html += builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
@@ -2358,13 +2377,22 @@ function buildRecordsArray(){
   });
   // Deposits
   state.deposits.forEach(d=>{
+    // Get item name from inventory if itemId exists
+    let itemDisplay = d.item || 'N/A';
+    if(d.itemId) {
+      const inventoryItem = state.inventory.find(item => item.id === d.itemId);
+      if(inventoryItem) {
+        itemDisplay = inventoryItem.name;
+      }
+    }
+    
     arr.push({
       type: 'Deposit',
       date: d.date,
       ref: d.id,
-      details: `Client: ${d.client}, Item: ${d.item || 'N/A'}`,
+      details: `Client: ${d.client}, Item: ${itemDisplay}`,
       amount: d.amount,
-      meta: `Used: ${fmt(d.used || 0)}, Balance: ${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}`
+      meta: `Agreed Price: ${fmt(d.agreedPrice || d.amount)}, Used: ${fmt(d.used || 0)}, Balance: ${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}`
     });
   });
   // Sort desc by date
@@ -2508,196 +2536,4 @@ function editUser(id){
   document.getElementById('userCanViewDeposits').checked = !!permissions.canViewDeposits;
   document.getElementById('userCanViewTaxInvoice').checked = !!permissions.canViewTaxInvoice;
   document.getElementById('userCanViewRecords').checked = !!permissions.canViewRecords;
-  document.getElementById('userCanViewSettings').checked = !!permissions.canViewSettings;
-  document.getElementById('userCanCreateSales').checked = permissions.canCreateSales !== false;
-  document.getElementById('userCanEditData').checked = !!permissions.canEditData;
-  document.getElementById('userCanDeleteData').checked = !!permissions.canDeleteData;
-  document.getElementById('userCanManageUsers').checked = !!permissions.canManageUsers;
-  document.getElementById('userCanSaveSettings').checked = !!permissions.canSaveSettings;
-  
-  document.getElementById('userModal').style.display = 'flex';
-}
-
-document.getElementById('userForm').addEventListener('submit', e=>{
-  e.preventDefault();
-  if(!hasPermission('canSaveSettings')) { alert('You do not have permission to save user settings'); return; }
-  
-  const id = document.getElementById('userId').value || idf();
-  const username = document.getElementById('userName').value.trim();
-  const password = document.getElementById('userPass').value;
-  const role = document.getElementById('userRole').value;
-  
-  // Get all permissions
-  const permissions = {
-    canViewSales: document.getElementById('userCanViewSales').checked,
-    canViewInventory: document.getElementById('userCanViewInventory').checked,
-    canViewExpenses: document.getElementById('userCanViewExpenses').checked,
-    canViewEmployees: document.getElementById('userCanViewEmployees').checked,
-    canViewSuppliers: document.getElementById('userCanViewSuppliers').checked,
-    canViewDeposits: document.getElementById('userCanViewDeposits').checked,
-    canViewTaxInvoice: document.getElementById('userCanViewTaxInvoice').checked,
-    canViewRecords: document.getElementById('userCanViewRecords').checked,
-    canViewSettings: document.getElementById('userCanViewSettings').checked,
-    canCreateSales: document.getElementById('userCanCreateSales').checked,
-    canEditData: document.getElementById('userCanEditData').checked,
-    canDeleteData: document.getElementById('userCanDeleteData').checked,
-    canManageUsers: document.getElementById('userCanManageUsers').checked,
-    canSaveSettings: document.getElementById('userCanSaveSettings').checked
-  };
-  
-  if(state.users.some(u=>u.username === username && u.id !== id)){ alert('Username already exists'); return; }
-  const existingIndex = state.users.findIndex(u=>u.id===id);
-  const userObj = {id, username, password, role, permissions};
-  if(existingIndex >= 0) state.users[existingIndex] = userObj; else state.users.push(userObj);
-  save(); populateUsersList(); closeUserModal(); 
-  updateUIForAuth(); // Refresh UI to reflect permission changes
-});
-
-/* ===========================
-   COMPANY & BUILDER SETTINGS
-   =========================== */
-document.getElementById('companyForm').addEventListener('submit', e=>{
-  e.preventDefault();
-  if(!hasPermission('canSaveSettings')) { alert('You do not have permission to save company settings'); return; }
-  
-  state.company = {
-    name: document.getElementById('companyName').value,
-    location: document.getElementById('companyLocation').value,
-    box: document.getElementById('companyBox').value,
-    tel: document.getElementById('companyTel').value,
-    email: document.getElementById('companyEmail').value
-  };
-  save(); 
-  alert('Company details saved successfully!');
-});
-
-document.getElementById('builderForm').addEventListener('submit', e=>{
-  e.preventDefault();
-  if(!hasPermission('canSaveSettings')) { alert('You do not have permission to save builder settings'); return; }
-  
-  state.builder = {
-    name: document.getElementById('builderName').value,
-    contact: document.getElementById('builderContact').value,
-    website: document.getElementById('builderWebsite').value
-  };
-  save(); 
-  alert('Builder details saved successfully!');
-});
-
-/* SETTINGS area render (Permission-based) */
-function renderSettingsAdmin(){
-  if(!hasPermission('canViewSettings')) return;
-  const container = document.getElementById('settingsAdminArea'); container.innerHTML='';
-  const user = currentUser();
-  
-  if(hasPermission('canManageUsers')){ 
-    container.innerHTML += '<p>Configure system preferences here.</p>';
-    const btn = document.createElement('button'); btn.className='btn btn-primary'; btn.textContent='Manage Users'; btn.onclick = openUserModal;
-    container.appendChild(btn);
-  } else {
-    container.innerHTML += '<p class="muted">Contact administrator for user management access.</p>'; 
-  }
-  
-  // Load company settings
-  if(state.company){
-    document.getElementById('companyName').value = state.company.name || '';
-    document.getElementById('companyLocation').value = state.company.location || '';
-    document.getElementById('companyBox').value = state.company.box || '';
-    document.getElementById('companyTel').value = state.company.tel || '';
-    document.getElementById('companyEmail').value = state.company.email || '';
-  }
-  
-  // Load builder settings
-  if(state.builder){
-    document.getElementById('builderName').value = state.builder.name || '';
-    document.getElementById('builderContact').value = state.builder.contact || '';
-    document.getElementById('builderWebsite').value = state.builder.website || '';
-  }
-  
-  // Disable save buttons if user doesn't have permission
-  const saveCompanyBtn = document.getElementById('saveCompanyBtn');
-  const saveBuilderBtn = document.getElementById('saveBuilderBtn');
-  if(!hasPermission('canSaveSettings')) {
-    saveCompanyBtn.disabled = true;
-    saveBuilderBtn.disabled = true;
-    saveCompanyBtn.textContent = 'No Permission';
-    saveBuilderBtn.textContent = 'No Permission';
-  } else {
-    saveCompanyBtn.disabled = false;
-    saveBuilderBtn.disabled = false;
-    saveCompanyBtn.textContent = 'Save Company';
-    saveBuilderBtn.textContent = 'Save Builder Info';
-  }
-}
-
-/* ===========================
-   AUTH UI updates & helpers
-   =========================== */
-function updateUIForAuth(){
-  const user = currentUser();
-  document.getElementById('currentUserDisplay').innerText = user ? `Signed in as: ${user.username} (${user.role})` : 'Not signed in';
-  document.getElementById('systemStatus').innerText = user ? 'Online' : 'Offline';
-  
-  // Update nav items visibility and state based on permissions
-  document.querySelectorAll("#navList .nav-item").forEach(nav=>{
-    const view = nav.dataset.view;
-    const permissionMap = {
-      'dashboard': true, // Everyone can access dashboard
-      'sales': 'canViewSales',
-      'inventory': 'canViewInventory',
-      'expenses': 'canViewExpenses',
-      'employees': 'canViewEmployees',
-      'suppliers': 'canViewSuppliers',
-      'deposits': 'canViewDeposits',
-      'tax-invoice': 'canViewTaxInvoice',
-      'records': 'canViewRecords',
-      'settings': 'canViewSettings'
-    };
-    
-    const requiredPermission = permissionMap[view];
-    if(requiredPermission === true || hasPermission(requiredPermission)) {
-      nav.style.display = 'flex';
-      nav.classList.remove('disabled');
-    } else {
-      nav.style.display = 'flex'; // Still show but disabled
-      nav.classList.add('disabled');
-    }
-  });
-  
-  if(!user) showLogin(); else hideLogin();
-  const qa = document.getElementById('quickUserActions'); qa.innerHTML='';
-  if(user){
-    const profileBtn = document.createElement('button'); profileBtn.className='btn small'; profileBtn.textContent='Profile'; 
-    profileBtn.onclick = ()=>{ 
-      const perms = user.permissions || {};
-      const permList = Object.keys(perms).filter(k=>perms[k]).join(', ');
-      alert(`Profile: ${user.username} (${user.role})\nPermissions: ${permList || 'None'}`); 
-    };
-    qa.appendChild(profileBtn);
-  }
-}
-
-/* ===========================
-   RENDER ALL (initial)
-   =========================== */
-function renderAll(){
-  renderSales(); 
-  renderInventory(); 
-  renderTaxInvoices();
-  renderExpenses(); 
-  renderEmployees(); 
-  renderSuppliers(); 
-  renderDeposits(); 
-  renderRecords(); 
-  renderSettingsAdmin();
-  updateUIForAuth();
-  updateDashboard();
-}
-
-// Initialize
-renderAll();
-updateLoginBranding();
-if(!currentUser()) showLogin(); else hideLogin();
-</script>
-</body>
-</html>
+  document.getElementById('userCanViewSettings').checked = !!permissions.canViewSettings
