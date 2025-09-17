@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sales System — All-in-One (with Admin Access Control)</title>
+  <title>Sales System — All-in-One (with Enhanced Admin Control)</title>
   <style>
     :root{
       --bg1:#0f2027; --bg2:#203a43; --bg3:#2c5364;
@@ -46,6 +46,8 @@
     .paging{display:flex;gap:6px;align-items:center;}
     .permission-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:10px 0;}
     .permission-item{background:#f8f9fa;padding:10px;border-radius:8px;display:flex;align-items:center;gap:8px;}
+    .search-container{display:flex;gap:10px;margin:10px 0;align-items:center;flex-wrap:wrap;}
+    .company-branding{text-align:center;margin:10px 0;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;}
     @media(max-width:768px){
       .sidebar{width:70px;padding:10px;}
       .sidebar .logo h1,.sidebar .nav-item div{display:none;}
@@ -66,6 +68,7 @@
       <div class="nav-item" data-view="employees">👥 Employees</div>
       <div class="nav-item" data-view="suppliers">🚚 Suppliers</div>
       <div class="nav-item" data-view="deposits">🏦 Deposits</div>
+      <div class="nav-item" data-view="tax-invoice">📋 Tax Invoice</div>
       <div class="nav-item" data-view="records">📁 Records</div>
       <div class="nav-item" data-view="settings">⚙️ Settings</div>
     </nav>
@@ -103,7 +106,7 @@
           <div style="font-size:2em;color:#22c55e;" id="dashInventoryCount">0</div>
         </div>
         <div class="card" style="text-align:center;">
-          <h3>Total Deposits</h3>
+          <h3>Deposits Amount</h3>
           <div style="font-size:2em;color:#f59e0b;" id="dashTotalDeposits">UGX 0</div>
         </div>
       </div>
@@ -138,6 +141,18 @@
         <thead>
           <tr><th>Item</th><th>Category</th><th>Supplier</th><th>Qty</th><th>Cost</th><th>Reorder</th><th>Status</th><th>Actions</th></tr>
         </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- Tax Invoice -->
+    <section data-view="tax-invoice" class="view card" style="display:none">
+      <h2>Tax Invoice 
+        <button class="btn btn-primary" onclick="openTaxInvoiceModal()">+ Create Tax Invoice</button>
+        <button class="btn btn-secondary" onclick="printTaxInvoices()">🖨️ Print All Tax Invoices</button>
+      </h2>
+      <table class="table" id="taxInvoiceTable">
+        <thead><tr><th>Date</th><th>Invoice No.</th><th>Customer</th><th>Total Amount</th><th>VAT</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
     </section>
@@ -197,9 +212,14 @@
         <button class="btn btn-primary" onclick="openDepositModal()">+ Add Deposit</button>
         <button class="btn btn-secondary" onclick="printDeposits()">🖨️ Print</button>
       </h2>
+      <div class="search-container">
+        <label>Search Customer: <input id="depositSearchCustomer" placeholder="Search by customer name" /></label>
+        <button class="btn btn-secondary" onclick="searchDeposits()">🔍 Search</button>
+        <button class="btn btn-secondary" onclick="renderDeposits()">Reset</button>
+      </div>
       <table class="table" id="depositsTable">
         <thead>
-          <tr><th>Date</th><th>Client</th><th>Item Deposited On</th><th>Initial Amount</th><th>Remaining Balance</th><th>Status</th><th>Actions</th></tr>
+          <tr><th>Date</th><th>Client</th><th>Item</th><th>Amount</th><th>Balance</th><th>Status</th><th>Actions</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -219,6 +239,7 @@
             <option>Expense</option>
             <option>Inventory</option>
             <option>Deposit</option>
+            <option>Tax Invoice</option>
           </select>
         </label>
         <label>Text: <input id="recordsText" placeholder="search details/ref/meta" /></label>
@@ -267,7 +288,19 @@
         <label>P.O. Box</label><input id="companyBox" />
         <label>Telephone</label><input id="companyTel" />
         <label>Email</label><input id="companyEmail" />
-        <div style="text-align:right;margin-top:8px;"><button class="btn btn-primary">Save Company</button></div>
+        <div style="text-align:right;margin-top:8px;">
+          <button type="submit" class="btn btn-primary" id="saveCompanyBtn">Save Company</button>
+        </div>
+      </form>
+      <hr/>
+      <h3>Software Builder Details</h3>
+      <form id="builderForm">
+        <label>Builder Name</label><input id="builderName" />
+        <label>Builder Contact</label><input id="builderContact" />
+        <label>Builder Website</label><input id="builderWebsite" />
+        <div style="text-align:right;margin-top:8px;">
+          <button type="submit" class="btn btn-primary" id="saveBuilderBtn">Save Builder Info</button>
+        </div>
       </form>
     </section>
   </main>
@@ -276,6 +309,7 @@
 <!-- LOGIN Modal -->
 <div id="loginModal" class="modal" style="display:flex">
   <div class="modal-box">
+    <div class="company-branding" id="loginCompanyBranding"></div>
     <h2>Login</h2>
     <form id="loginForm">
       <label>Username</label><input id="loginUsername" required/>
@@ -329,6 +363,10 @@
           <label>Deposits</label>
         </div>
         <div class="permission-item">
+          <input type="checkbox" id="userCanViewTaxInvoice" />
+          <label>Tax Invoice</label>
+        </div>
+        <div class="permission-item">
           <input type="checkbox" id="userCanViewRecords" />
           <label>Records</label>
         </div>
@@ -352,10 +390,18 @@
           <input type="checkbox" id="userCanDeleteData" />
           <label>Delete Data</label>
         </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanManageUsers" />
+          <label>Manage Users</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="userCanSaveSettings" />
+          <label>Save Settings</label>
+        </div>
       </div>
       
       <div style="margin-top:15px;text-align:right;">
-        <button type="submit" class="btn btn-primary">Save User</button>
+        <button type="submit" class="btn btn-primary" id="saveUserBtn">Save User</button>
         <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Cancel</button>
       </div>
     </form>
@@ -385,6 +431,30 @@
       <div style="margin-top:10px;text-align:right;">
         <button type="submit" class="btn btn-primary">Save Sale</button>
         <button type="button" class="btn btn-secondary" onclick="closeSaleModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tax Invoice Modal -->
+<div id="taxInvoiceModal" class="modal">
+  <div class="modal-box">
+    <h2>Create Tax Invoice</h2>
+    <form id="taxInvoiceForm">
+      <input type="hidden" id="taxInvoiceId"/>
+      <label>Invoice Number</label><input id="taxInvoiceNumber" required/>
+      <label>Customer</label><input id="taxInvoiceCustomer" required/>
+      <label>Phone Number</label><input id="taxInvoiceContact" required/>
+      <div id="taxInvoiceItems"></div>
+      <button type="button" class="btn btn-secondary" onclick="addTaxInvoiceItem()">+ Add Item</button>
+      <div style="margin-top:10px;text-align:right;">
+        <strong id="taxInvoiceTotalDisplay">Total: UGX 0</strong><br>
+        <strong id="taxInvoiceVATDisplay">VAT: UGX 0</strong><br>
+        <strong id="taxInvoiceGrandTotalDisplay">Grand Total: UGX 0</strong>
+      </div>
+      <div style="margin-top:10px;text-align:right;">
+        <button type="submit" class="btn btn-primary">Save Tax Invoice</button>
+        <button type="button" class="btn btn-secondary" onclick="closeTaxInvoiceModal()">Cancel</button>
       </div>
     </form>
   </div>
@@ -470,9 +540,11 @@
     <form id="depositForm">
       <input type="hidden" id="depositId"/>
       <label>Date</label><input type="date" id="depositDate" required/>
-      <label>Client</label><input id="depositClient" required/>
-      <label>Item Deposited On</label><input id="depositItem" required placeholder="What item/service is this deposit for?"/>
-      <label>Initial Amount</label><input type="number" id="depositAmount" required/>
+      <label>Client</label>
+      <input id="depositClient" required list="clientSuggestions"/>
+      <datalist id="clientSuggestions"></datalist>
+      <label>Item</label><input id="depositItem" required placeholder="What item/service is this deposit for?"/>
+      <label>Amount</label><input type="number" id="depositAmount" required/>
       <label>Amount Used (optional)</label><input type="number" id="depositUsed" value="0" placeholder="Amount used from deposit"/>
       <div style="text-align:right;margin-top:10px;">
         <button type="submit" class="btn btn-primary">Save</button>
@@ -482,11 +554,28 @@
   </div>
 </div>
 
+<!-- Top Up Deposit Modal -->
+<div id="topUpModal" class="modal">
+  <div class="modal-box">
+    <h2>Top Up Deposit</h2>
+    <form id="topUpForm">
+      <input type="hidden" id="topUpDepositId"/>
+      <label>Customer</label><input id="topUpCustomer" readonly/>
+      <label>Current Balance</label><input id="topUpCurrentBalance" readonly/>
+      <label>Top Up Amount</label><input type="number" id="topUpAmount" required min="0"/>
+      <div style="text-align:right;margin-top:10px;">
+        <button type="submit" class="btn btn-primary">Add Top Up</button>
+        <button type="button" class="btn btn-secondary" onclick="closeTopUpModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 /* ===========================
    STORAGE & INITIAL STATE
    =========================== */
-const STORAGE_KEY = "sales_system_data_v4_admin_control";
+const STORAGE_KEY = "sales_system_data_v5_enhanced";
 const fmt = n => "UGX " + Number(n||0).toLocaleString();
 const idf = () => Math.random().toString(36).substr(2,9);
 
@@ -497,6 +586,7 @@ if(!state.expenses) state.expenses=[];
 if(!state.employees) state.employees=[];
 if(!state.suppliers) state.suppliers=[];
 if(!state.deposits) state.deposits=[];
+if(!state.taxInvoices) state.taxInvoices=[];
 if(!state.users) {
   // default admin user (client-side demo) with full permissions
   state.users = [
@@ -512,20 +602,24 @@ if(!state.users) {
         canViewEmployees: true,
         canViewSuppliers: true,
         canViewDeposits: true,
+        canViewTaxInvoice: true,
         canViewRecords: true,
         canViewSettings: true,
         canCreateSales: true,
         canEditData: true,
-        canDeleteData: true
+        canDeleteData: true,
+        canManageUsers: true,
+        canSaveSettings: true
       }
     }
   ];
 }
 if(!state.meta) state.meta={currentUserId:null};
 if(!state.company) state.company={name:'', location:'', box:'', tel:'', email:''};
+if(!state.builder) state.builder={name:'Software Builder', contact:'contact@builder.com', website:'www.builder.com'};
 
 // helper to persist
-function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateUIForAuth(); updateDashboard(); }
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateUIForAuth(); updateDashboard(); updateLoginBranding(); }
 
 // currently logged in user (object or null)
 function currentUser(){ return state.users.find(u=>u.id===state.meta.currentUserId) || null; }
@@ -541,19 +635,36 @@ function hasPermission(permissionKey) {
 // Company header for all receipts
 function companyHeaderHTML(){
   const c = state.company || {};
+  const user = currentUser();
+  const userInfo = user ? `<div style="margin-top:10px;font-size:0.9em;">Served by: ${user.username}</div>` : '';
   return `<div style="text-align:center;margin-bottom:20px;">` +
          `<h2 style="margin:0;padding:0;">${c.name || 'Sales System'}</h2>` +
          `<div>${c.location || ''} ${c.box ? ('P.O. Box ' + c.box) : ''}</div>` +
          `<div>Tel: ${c.tel || ''} ${c.email ? ('| Email: ' + c.email) : ''}</div>` +
+         userInfo +
          `<hr style="border:1px solid #ccc;"/></div>`;
 }
 
-// Update dashboard statistics
+// Builder footer for all receipts
+function builderFooterHTML(){
+  const b = state.builder || {};
+  return `<div style="text-align:center;margin-top:30px;font-size:0.8em;color:#666;">` +
+         `<hr style="border:1px solid #ccc;"/>` +
+         `<p>System built by: ${b.name}<br>` +
+         `Contact: ${b.contact} | Website: ${b.website}</p>` +
+         `</div>`;
+}
+
+// Update dashboard statistics - show deposits amount not total products
 function updateDashboard(){
   const totalSales = state.sales.reduce((sum, s) => sum + (s.total || 0), 0);
   const totalExpenses = state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const inventoryCount = state.inventory.length;
-  const totalDeposits = state.deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+  // Calculate current deposit balances (amount - used)
+  const totalDepositBalances = state.deposits.reduce((sum, d) => {
+    const balance = Number(d.amount || 0) - Number(d.used || 0);
+    return sum + balance;
+  }, 0);
   
   const dashSales = document.getElementById('dashTotalSales');
   const dashExpenses = document.getElementById('dashTotalExpenses');
@@ -563,13 +674,31 @@ function updateDashboard(){
   if(dashSales) dashSales.textContent = fmt(totalSales);
   if(dashExpenses) dashExpenses.textContent = fmt(totalExpenses);
   if(dashInventory) dashInventory.textContent = inventoryCount;
-  if(dashDeposits) dashDeposits.textContent = fmt(totalDeposits);
+  if(dashDeposits) dashDeposits.textContent = fmt(totalDepositBalances);
+}
+
+// Update login form branding
+function updateLoginBranding(){
+  const brandingDiv = document.getElementById('loginCompanyBranding');
+  const c = state.company || {};
+  if(c.name) {
+    brandingDiv.innerHTML = `<h3 style="margin:0;color:#333;">${c.name}</h3>` +
+                           (c.location ? `<p style="margin:5px 0;color:#666;">${c.location}</p>` : '');
+    brandingDiv.style.display = 'block';
+  } else {
+    brandingDiv.style.display = 'none';
+  }
 }
 
 /* ===========================
    AUTH (CLIENT-SIDE)
    =========================== */
-function showLogin(){ document.getElementById('loginModal').style.display='flex'; }
+function showLogin(){ 
+  // Clear login form
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginModal').style.display='flex'; 
+}
 function hideLogin(){ document.getElementById('loginModal').style.display='none'; }
 document.getElementById('loginForm').addEventListener('submit', e=>{
   e.preventDefault();
@@ -580,7 +709,12 @@ document.getElementById('loginForm').addEventListener('submit', e=>{
   state.meta.currentUserId = user.id; save(); hideLogin();
   renderAll(); alert('Logged in as '+user.username);
 });
-function logout(){ state.meta.currentUserId = null; save(); showLogin(); renderAll(); }
+function logout(){ 
+  state.meta.currentUserId = null; 
+  save(); 
+  showLogin(); 
+  renderAll(); 
+}
 
 /* ===========================
    NAVIGATION WITH ACCESS CONTROL
@@ -599,6 +733,7 @@ document.querySelectorAll("#navList .nav-item").forEach(nav=>{
       'employees': 'canViewEmployees',
       'suppliers': 'canViewSuppliers',
       'deposits': 'canViewDeposits',
+      'tax-invoice': 'canViewTaxInvoice',
       'records': 'canViewRecords',
       'settings': 'canViewSettings'
     };
@@ -827,11 +962,299 @@ function printSale(id){
   html += `<h3 style="text-align:center">Receipt</h3><p>Customer: ${s.customer}<br>Contact: ${s.contact}<br>Date: ${s.date}</p><table border="1" style="width:100%;border-collapse:collapse;"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>`;
   s.items.forEach(i=>{html+=`<tr><td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price)}</td><td>${fmt(i.qty * i.price)}</td></tr>`});
   html+=`</table><p><strong>Total: ${fmt(s.total)}</strong></p>`;
+  html += builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
 
 function printSales(){
-  const html=companyHeaderHTML()+'<h3>All Sales</h3>'+document.querySelector('#salesTable').outerHTML; 
+  const html=companyHeaderHTML()+'<h3>All Sales</h3>'+document.querySelector('#salesTable').outerHTML + builderFooterHTML(); 
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+/* ===========================
+   TAX INVOICE (new section)
+   =========================== */
+function renderTaxInvoices(){
+  if(!hasPermission('canViewTaxInvoice')) return;
+  const tbody = document.querySelector('#taxInvoiceTable tbody'); tbody.innerHTML='';
+  state.taxInvoices.forEach((t, index) => {
+    const tr=document.createElement('tr');
+    const isSaved = t.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>' 
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${t.date}</td><td>${t.invoiceNumber}</td><td>${t.customer}</td><td>${fmt(t.grandTotal)}</td><td>${fmt(t.vatAmount)}</td><td>${statusBadge}</td>
+      <td>
+        <button class="btn btn-secondary small" onclick="printTaxInvoice('${t.id}')">🖨️</button>
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editTaxInvoice(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteTaxInvoice('${t.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markTaxInvoiceSaved('${t.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteTaxInvoice('${t.id}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function openTaxInvoiceModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to create tax invoices'); return; }
+  document.getElementById('taxInvoiceForm').reset();
+  document.getElementById('taxInvoiceId').value = '';
+  document.getElementById('taxInvoiceItems').innerHTML='';
+  // Generate invoice number
+  const invoiceNumber = 'INV-' + Date.now();
+  document.getElementById('taxInvoiceNumber').value = invoiceNumber;
+  addTaxInvoiceItem();
+  updateTaxInvoiceTotal();
+  document.getElementById('taxInvoiceModal').style.display='flex';
+}
+
+function closeTaxInvoiceModal(){document.getElementById('taxInvoiceModal').style.display='none';}
+
+function addTaxInvoiceItem(prefItemId){
+  const div=document.createElement('div'); 
+  div.style.display='grid';
+  div.style.gridTemplateColumns='2fr 1fr 1fr 1fr 1fr 1fr auto';
+  div.style.gap='5px'; 
+  div.style.marginBottom='6px';
+  div.style.alignItems='center';
+  
+  const select = document.createElement('select'); select.required = true;
+  (state.inventory.length ? state.inventory : [{id:'',name:'-- no items --',cost:0}]).forEach(i=>{
+    const opt = document.createElement('option');
+    opt.value = i.id;
+    opt.dataset.cost = i.cost;
+    opt.textContent = i.name;
+    if(prefItemId && prefItemId === i.id) opt.selected = true;
+    select.appendChild(opt);
+  });
+  
+  const unit = document.createElement('input'); unit.placeholder='Unit'; unit.value='pcs'; unit.style.width='60px';
+  const qty = document.createElement('input'); qty.type='number'; qty.placeholder='Qty'; qty.min=1; qty.required=true; qty.value=1; qty.style.width='60px';
+  const rate = document.createElement('input'); rate.type='number'; rate.placeholder='Rate'; rate.required=true; rate.style.width='80px';
+  const disc = document.createElement('input'); disc.type='number'; disc.placeholder='Disc%'; disc.value=0; disc.min=0; disc.max=100; disc.style.width='60px';
+  const vat = document.createElement('input'); vat.type='number'; vat.placeholder='VAT%'; vat.value=18; vat.min=0; vat.style.width='60px';
+  const rm = document.createElement('button'); rm.type='button'; rm.textContent='❌'; rm.onclick = ()=>{ div.remove(); updateTaxInvoiceTotal(); };
+  
+  select.addEventListener('change', ()=>{
+    const sel = state.inventory.find(it=>it.id === select.value);
+    rate.value = sel ? sel.cost : 0;
+    updateTaxInvoiceTotal();
+  });
+  
+  [qty, rate, disc, vat].forEach(input => {
+    input.addEventListener('input', updateTaxInvoiceTotal);
+  });
+  
+  div.appendChild(select);
+  div.appendChild(unit);
+  div.appendChild(qty);
+  div.appendChild(rate);
+  div.appendChild(disc);
+  div.appendChild(vat);
+  div.appendChild(rm);
+  document.getElementById('taxInvoiceItems').appendChild(div);
+  updateTaxInvoiceTotal();
+}
+
+function updateTaxInvoiceTotal(){
+  let subtotal = 0;
+  let totalVAT = 0;
+  
+  document.querySelectorAll('#taxInvoiceItems > div').forEach(div=>{
+    const inputs = div.querySelectorAll('input[type=number]');
+    const qty = Number(inputs[0].value||0);
+    const rate = Number(inputs[1].value||0);
+    const discPct = Number(inputs[2].value||0);
+    const vatPct = Number(inputs[3].value||0);
+    
+    const lineTotal = qty * rate;
+    const discountAmount = lineTotal * (discPct/100);
+    const afterDiscount = lineTotal - discountAmount;
+    const vatAmount = afterDiscount * (vatPct/100);
+    
+    subtotal += afterDiscount;
+    totalVAT += vatAmount;
+  });
+  
+  const grandTotal = subtotal + totalVAT;
+  
+  document.getElementById('taxInvoiceTotalDisplay').innerText = `Subtotal: ${fmt(subtotal)}`;
+  document.getElementById('taxInvoiceVATDisplay').innerText = `VAT: ${fmt(totalVAT)}`;
+  document.getElementById('taxInvoiceGrandTotalDisplay').innerText = `Grand Total: ${fmt(grandTotal)}`;
+  
+  return {subtotal, totalVAT, grandTotal};
+}
+
+document.getElementById('taxInvoiceForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const taxInvoiceId = document.getElementById('taxInvoiceId').value;
+  const invoiceNumber = document.getElementById('taxInvoiceNumber').value;
+  const customer = document.getElementById('taxInvoiceCustomer').value;
+  const contact = document.getElementById('taxInvoiceContact').value;
+  const items = [];
+  let valid = true;
+  
+  document.querySelectorAll('#taxInvoiceItems > div').forEach(div=>{
+    const select = div.querySelector('select');
+    const inputs = div.querySelectorAll('input');
+    const unit = inputs[0].value || 'pcs';
+    const qty = Number(inputs[1].value||0);
+    const rate = Number(inputs[2].value||0);
+    const discPct = Number(inputs[3].value||0);
+    const vatPct = Number(inputs[4].value||0);
+    
+    const itemInv = state.inventory.find(i=>i.id===select.value);
+    const name = itemInv ? itemInv.name : select.options[select.selectedIndex].text;
+    
+    if(qty <= 0) valid = false;
+    
+    const lineTotal = qty * rate;
+    const discountAmount = lineTotal * (discPct/100);
+    const afterDiscount = lineTotal - discountAmount;
+    const vatAmount = afterDiscount * (vatPct/100);
+    
+    items.push({
+      id: select.value, 
+      name, 
+      unit, 
+      qty, 
+      rate, 
+      discPct, 
+      vatPct,
+      lineTotal: afterDiscount,
+      vatAmount
+    });
+    
+    // reduce inventory
+    if(itemInv){
+      itemInv.qty = Number(itemInv.qty) - qty;
+      if(itemInv.qty < 0) itemInv.qty = 0;
+    }
+  });
+  
+  if(!valid) { alert('Please enter valid quantities'); return; }
+  
+  const totals = updateTaxInvoiceTotal();
+  
+  const taxInvoiceData = {
+    id: taxInvoiceId || idf(), 
+    date: new Date().toISOString().slice(0,10), 
+    invoiceNumber,
+    customer, 
+    contact, 
+    items, 
+    subtotal: totals.subtotal,
+    vatAmount: totals.totalVAT,
+    grandTotal: totals.grandTotal,
+    saved: false
+  };
+  
+  if(taxInvoiceId){
+    const index = state.taxInvoices.findIndex(t => t.id === taxInvoiceId);
+    if(index >= 0) state.taxInvoices[index] = taxInvoiceData;
+  } else {
+    state.taxInvoices.push(taxInvoiceData);
+  }
+  
+  save(); renderTaxInvoices(); renderInventory(); closeTaxInvoiceModal();
+});
+
+function editTaxInvoice(index){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit tax invoices'); return; }
+  const t = state.taxInvoices[index];
+  if(!t || t.saved) return alert('Cannot edit saved tax invoices');
+  
+  document.getElementById('taxInvoiceId').value = t.id;
+  document.getElementById('taxInvoiceNumber').value = t.invoiceNumber;
+  document.getElementById('taxInvoiceCustomer').value = t.customer;
+  document.getElementById('taxInvoiceContact').value = t.contact || '';
+  
+  document.getElementById('taxInvoiceItems').innerHTML = '';
+  t.items.forEach(item => {
+    addTaxInvoiceItem(item.id);
+    const lastDiv = document.getElementById('taxInvoiceItems').lastChild;
+    const inputs = lastDiv.querySelectorAll('input');
+    inputs[0].value = item.unit || 'pcs';
+    inputs[1].value = item.qty;
+    inputs[2].value = item.rate;
+    inputs[3].value = item.discPct || 0;
+    inputs[4].value = item.vatPct || 18;
+  });
+  
+  updateTaxInvoiceTotal();
+  document.getElementById('taxInvoiceModal').style.display='flex';
+}
+
+function deleteTaxInvoice(id){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete tax invoices'); return; }
+  if(!confirm('Delete this tax invoice?')) return;
+  const taxInvoice = state.taxInvoices.find(t=>t.id===id);
+  if(taxInvoice && taxInvoice.saved) return alert('Cannot delete saved tax invoices');
+  
+  if(taxInvoice && taxInvoice.items){
+    taxInvoice.items.forEach(it=>{
+      const inv = state.inventory.find(i=>i.id===it.id);
+      if(inv) inv.qty = Number(inv.qty) + Number(it.qty);
+    });
+  }
+  state.taxInvoices = state.taxInvoices.filter(t=>t.id!==id);
+  save(); renderTaxInvoices(); renderRecords(); renderInventory();
+}
+
+function adminDeleteTaxInvoice(id){
+  const user = currentUser();
+  if(!user || user.role !== 'admin') return alert('Admin only');
+  if(!confirm('Admin delete this saved tax invoice?')) return;
+  
+  const taxInvoice = state.taxInvoices.find(t=>t.id===id);
+  if(taxInvoice && taxInvoice.items){
+    taxInvoice.items.forEach(it=>{
+      const inv = state.inventory.find(i=>i.id===it.id);
+      if(inv) inv.qty = Number(inv.qty) + Number(it.qty);
+    });
+  }
+  state.taxInvoices = state.taxInvoices.filter(t=>t.id!==id);
+  save(); renderTaxInvoices(); renderRecords(); renderInventory();
+}
+
+function markTaxInvoiceSaved(id){
+  const taxInvoice = state.taxInvoices.find(t => t.id === id);
+  if(taxInvoice) {
+    taxInvoice.saved = true;
+    save();
+    renderTaxInvoices();
+  }
+}
+
+function printTaxInvoice(id){
+  const t = state.taxInvoices.find(t=>t.id===id);
+  if(!t) return alert('Tax invoice not found');
+  
+  let html = companyHeaderHTML();
+  html += `<h3 style="text-align:center">TAX INVOICE</h3>`;
+  html += `<p><strong>Invoice No:</strong> ${t.invoiceNumber}<br><strong>Date:</strong> ${t.date}</p>`;
+  html += `<p><strong>Bill To:</strong><br>${t.customer}<br>Contact: ${t.contact}</p>`;
+  html += `<table border="1" style="width:100%;border-collapse:collapse;">`;
+  html += `<tr><th>Item</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Disc%</th><th>VAT%</th><th>Amount</th></tr>`;
+  
+  t.items.forEach(i=>{
+    html += `<tr><td>${i.name}</td><td>${i.unit}</td><td>${i.qty}</td><td>${fmt(i.rate)}</td><td>${i.discPct}%</td><td>${i.vatPct}%</td><td>${fmt(i.lineTotal)}</td></tr>`;
+  });
+  
+  html += `</table>`;
+  html += `<div style="text-align:right;margin-top:20px;">`;
+  html += `<p><strong>Subtotal: ${fmt(t.subtotal)}</strong></p>`;
+  html += `<p><strong>VAT: ${fmt(t.vatAmount)}</strong></p>`;
+  html += `<p style="font-size:1.2em;"><strong>Grand Total: ${fmt(t.grandTotal)}</strong></p>`;
+  html += `</div>`;
+  html += builderFooterHTML();
+  
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+function printTaxInvoices(){
+  const html=companyHeaderHTML()+'<h3>All Tax Invoices</h3>'+document.querySelector('#taxInvoiceTable').outerHTML + builderFooterHTML(); 
   const w=window.open(''); w.document.write(html); w.print();
 }
 
@@ -934,7 +1357,7 @@ function markInventorySaved(id){
 }
 
 function printInventory(){
-  const html=companyHeaderHTML()+'<h3>Inventory Report</h3>'+document.querySelector('#inventoryTable').outerHTML; 
+  const html=companyHeaderHTML()+'<h3>Inventory Report</h3>'+document.querySelector('#inventoryTable').outerHTML + builderFooterHTML(); 
   const w=window.open(''); w.document.write(html); w.print();
 }
 
@@ -1048,7 +1471,7 @@ function searchExpenses(){
 }
 
 function printExpenses(){
-  const html=companyHeaderHTML()+'<h3>Expenses Report</h3>'+document.querySelector('#expensesTable').outerHTML; 
+  const html=companyHeaderHTML()+'<h3>Expenses Report</h3>'+document.querySelector('#expensesTable').outerHTML + builderFooterHTML(); 
   const w=window.open(''); w.document.write(html); w.print();
 }
 
@@ -1138,7 +1561,7 @@ function markEmployeeSaved(id){
 }
 
 function printEmployees(){
-  const html=companyHeaderHTML()+'<h3>Employees Report</h3>'+document.querySelector('#employeesTable').outerHTML; 
+  const html=companyHeaderHTML()+'<h3>Employees Report</h3>'+document.querySelector('#employeesTable').outerHTML + builderFooterHTML(); 
   const w=window.open(''); w.document.write(html); w.print();
 }
 
@@ -1227,13 +1650,24 @@ function markSupplierSaved(id){
 }
 
 function printSuppliers(){
-  const html=companyHeaderHTML()+'<h3>Suppliers Report</h3>'+document.querySelector('#suppliersTable').outerHTML; 
+  const html=companyHeaderHTML()+'<h3>Suppliers Report</h3>'+document.querySelector('#suppliersTable').outerHTML + builderFooterHTML(); 
   const w=window.open(''); w.document.write(html); w.print();
 }
 
 /* ===========================
-   DEPOSITS (enhanced with item tracking and automated balance)
+   DEPOSITS (enhanced with search and top-up)
    =========================== */
+function populateClientSuggestions(){
+  const datalist = document.getElementById('clientSuggestions');
+  datalist.innerHTML = '';
+  const clients = [...new Set(state.deposits.map(d => d.client))];
+  clients.forEach(client => {
+    const option = document.createElement('option');
+    option.value = client;
+    datalist.appendChild(option);
+  });
+}
+
 function renderDeposits(){
   if(!hasPermission('canViewDeposits')) return;
   const tbody=document.querySelector('#depositsTable tbody'); tbody.innerHTML='';
@@ -1248,6 +1682,40 @@ function renderDeposits(){
     tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${d.item || 'N/A'}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
       <td>
         <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
+        ${remainingBalance > 0 ? `<button class="btn btn-secondary small" onclick="topUpDeposit('${d.id}')">+ Top Up</button>` : ''}
+        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editDeposit(${index})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markDepositSaved('${d.id}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteDeposit('${d.id}')">Admin Delete</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function searchDeposits(){
+  const searchTerm = document.getElementById('depositSearchCustomer').value.toLowerCase();
+  if(!searchTerm) {
+    renderDeposits();
+    return;
+  }
+  
+  const tbody=document.querySelector('#depositsTable tbody'); tbody.innerHTML='';
+  const filteredDeposits = state.deposits.filter(d => 
+    d.client.toLowerCase().includes(searchTerm)
+  );
+  
+  filteredDeposits.forEach((d, index) => {
+    const tr=document.createElement('tr');
+    const isSaved = d.saved !== false;
+    const statusBadge = isSaved ? '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Saved</span>' 
+                                : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
+    const remainingBalance = Number(d.amount) - Number(d.used || 0);
+    
+    tr.className = isSaved ? 'saved' : 'unsaved';
+    tr.innerHTML=`<td>${d.date}</td><td>${d.client}</td><td>${d.item || 'N/A'}</td><td>${fmt(d.amount)}</td><td>${fmt(remainingBalance)}</td><td>${statusBadge}</td>
+      <td>
+        <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
+        ${remainingBalance > 0 ? `<button class="btn btn-secondary small" onclick="topUpDeposit('${d.id}')">+ Top Up</button>` : ''}
         ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editDeposit(${index})">Edit</button>` : ''}
         ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
         ${!isSaved ? `<button class="btn btn-secondary small" onclick="markDepositSaved('${d.id}')">Mark Saved</button>` : ''}
@@ -1262,9 +1730,40 @@ function openDepositModal(){
   document.getElementById('depositForm').reset();
   document.getElementById('depositId').value='';
   document.getElementById('depositDate').value = new Date().toISOString().slice(0,10);
+  populateClientSuggestions();
   document.getElementById('depositModal').style.display='flex';
 }
 function closeDepositModal(){document.getElementById('depositModal').style.display='none';}
+
+function topUpDeposit(id){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to top up deposits'); return; }
+  const deposit = state.deposits.find(d => d.id === id);
+  if(!deposit) return alert('Deposit not found');
+  
+  document.getElementById('topUpDepositId').value = deposit.id;
+  document.getElementById('topUpCustomer').value = deposit.client;
+  document.getElementById('topUpCurrentBalance').value = fmt(Number(deposit.amount) - Number(deposit.used || 0));
+  document.getElementById('topUpAmount').value = '';
+  document.getElementById('topUpModal').style.display = 'flex';
+}
+
+function closeTopUpModal(){document.getElementById('topUpModal').style.display='none';}
+
+document.getElementById('topUpForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const depositId = document.getElementById('topUpDepositId').value;
+  const topUpAmount = Number(document.getElementById('topUpAmount').value);
+  
+  const deposit = state.deposits.find(d => d.id === depositId);
+  if(deposit && topUpAmount > 0) {
+    deposit.amount = Number(deposit.amount) + topUpAmount;
+    deposit.remainingBalance = Number(deposit.amount) - Number(deposit.used || 0);
+    save();
+    renderDeposits();
+    closeTopUpModal();
+    alert(`Successfully added ${fmt(topUpAmount)} to ${deposit.client}'s account`);
+  }
+});
 
 document.getElementById('depositForm').addEventListener('submit', e=>{
   e.preventDefault();
@@ -1303,6 +1802,7 @@ function editDeposit(index){
   document.getElementById('depositItem').value = d.item || '';
   document.getElementById('depositAmount').value = d.amount;
   document.getElementById('depositUsed').value = d.used || 0;
+  populateClientSuggestions();
   document.getElementById('depositModal').style.display='flex';
 }
 
@@ -1340,22 +1840,23 @@ function printDeposit(id){
   let html = companyHeaderHTML();
   html += `<h3 style="text-align:center">Deposit Receipt</h3>`;
   html += `<p>Client: ${d.client}<br>Date: ${d.date}</p>`;
-  html += `<p>Item Deposited On: ${d.item || 'N/A'}</p>`;
+  html += `<p>Item: ${d.item || 'N/A'}</p>`;
   html += `<table border="1" style="width:100%;border-collapse:collapse;">`;
-  html += `<tr><th>Initial Amount</th><td>${fmt(d.amount)}</td></tr>`;
+  html += `<tr><th>Amount</th><td>${fmt(d.amount)}</td></tr>`;
   html += `<tr><th>Amount Used</th><td>${fmt(d.used || 0)}</td></tr>`;
-  html += `<tr><th>Remaining Balance</th><td>${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}</td></tr>`;
+  html += `<tr><th>Balance</th><td>${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}</td></tr>`;
   html += `</table>`;
+  html += builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
 
 function printDeposits(){
-  const html=companyHeaderHTML()+'<h3>Deposits Report</h3>'+document.querySelector('#depositsTable').outerHTML; 
+  const html=companyHeaderHTML()+'<h3>Deposits Report</h3>'+document.querySelector('#depositsTable').outerHTML + builderFooterHTML(); 
   const w=window.open(''); w.document.write(html); w.print();
 }
 
 /* ===========================
-   RECORDS (with pagination + filters)
+   RECORDS (with pagination + filters + tax invoice)
    =========================== */
 function buildRecordsArray(){
   const arr = [];
@@ -1368,6 +1869,17 @@ function buildRecordsArray(){
       details: `Customer: ${s.customer}`,
       amount: s.total,
       meta: s.items ? s.items.map(i=>`${i.name} x${i.qty}`).join(', ') : 'No items'
+    });
+  });
+  // Tax Invoices
+  state.taxInvoices.forEach(t=>{
+    arr.push({
+      type: 'Tax Invoice',
+      date: t.date,
+      ref: t.id,
+      details: `Invoice: ${t.invoiceNumber} - Customer: ${t.customer}`,
+      amount: t.grandTotal,
+      meta: `VAT: ${fmt(t.vatAmount)}, Items: ${t.items.length}`
     });
   });
   // Expenses
@@ -1400,7 +1912,7 @@ function buildRecordsArray(){
       ref: d.id,
       details: `Client: ${d.client}, Item: ${d.item || 'N/A'}`,
       amount: d.amount,
-      meta: `Used: ${fmt(d.used || 0)}, Remaining: ${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}`
+      meta: `Used: ${fmt(d.used || 0)}, Balance: ${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}`
     });
   });
   // Sort desc by date
@@ -1433,11 +1945,12 @@ function renderRecords(list){
   pageRows.forEach(r=>{
     const tr=document.createElement('tr');
     let amountDisplay = '';
-    if(r.type === 'Sale' || r.type === 'Expense' || r.type === 'Deposit') { amountDisplay = fmt(r.amount); totalMoney += Number(r.amount||0); }
+    if(r.type === 'Sale' || r.type === 'Expense' || r.type === 'Deposit' || r.type === 'Tax Invoice') { amountDisplay = fmt(r.amount); totalMoney += Number(r.amount||0); }
     else { amountDisplay = r.amount; totalQty += Number(r.amount||0); }
     tr.innerHTML = `<td>${r.type}</td><td>${r.date}</td><td>${r.ref}</td><td>${r.details}<div style="font-size:0.9em;color:#cbd5e1;margin-top:4px">${r.meta||''}</div></td><td>${amountDisplay}</td>
       <td>
         ${r.type === 'Sale' ? `<button class="btn btn-secondary small" onclick="printSale('${r.ref}')">🖨️</button>` : ''}
+        ${r.type === 'Tax Invoice' ? `<button class="btn btn-secondary small" onclick="printTaxInvoice('${r.ref}')">🖨️</button>` : ''}
         ${r.type === 'Expense' ? `<button class="btn btn-secondary small" onclick="printExpense('${r.ref}')">🖨️</button>` : ''}
         ${r.type === 'Inventory' ? `<button class="btn btn-secondary small" onclick="printInventoryItem('${r.ref}')">🖨️</button>` : ''}
         ${r.type === 'Deposit' ? `<button class="btn btn-secondary small" onclick="printDeposit('${r.ref}')">🖨️</button>` : ''}
@@ -1452,7 +1965,7 @@ function renderRecords(list){
 
 function searchRecords(){ recordsPage = 1; renderRecords(); }
 function printRecords(){
-  const html=companyHeaderHTML()+'<h3>Company Records (current page)</h3>'+document.querySelector('#recordsTable').outerHTML;
+  const html=companyHeaderHTML()+'<h3>Company Records (current page)</h3>'+document.querySelector('#recordsTable').outerHTML + builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
 
@@ -1461,6 +1974,7 @@ function adminDeleteRecord(type, ref){
   if(!user || user.role !== 'admin'){ alert('Admin access required'); return; }
   if(!confirm(`Admin delete this ${type}?`)) return;
   if(type === 'Sale') adminDeleteSale(ref);
+  else if(type === 'Tax Invoice') adminDeleteTaxInvoice(ref);
   else if(type === 'Expense') adminDeleteExpense(ref);
   else if(type === 'Inventory') adminDeleteInventory(ref);
   else if(type === 'Deposit') adminDeleteDeposit(ref);
@@ -1473,6 +1987,7 @@ function printExpense(id){
   if(!e) return alert('Expense not found');
   let html = companyHeaderHTML();
   html += `<h3>Expense Receipt</h3><p>${e.date}</p><p>${e.category} - ${e.description}</p><p>Amount: ${fmt(e.amount)}</p>`;
+  html += builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
 
@@ -1481,6 +1996,7 @@ function printInventoryItem(id){
   if(!i) return alert('Item not found');
   let html = companyHeaderHTML();
   html += `<h3>Inventory Item</h3><p>${i.name}</p><p>Category: ${i.category||'N/A'}</p><p>Qty: ${i.qty}</p><p>Cost: ${fmt(i.cost)}</p>`;
+  html += builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
 
@@ -1490,11 +2006,10 @@ function recordsPrev(){ if(recordsPage>1) recordsPage--; renderRecords(); }
 function recordsJump(){ const v = Number(document.getElementById('recordsGoto').value||1); recordsPage = Math.max(1, v); renderRecords(); }
 
 /* ===========================
-   USERS / SETTINGS (admin only)
+   USERS / SETTINGS (enhanced permissions)
    =========================== */
 function openUserModal(){
-  const user = currentUser();
-  if(!user || user.role !== 'admin') { alert('Admin access required'); return; }
+  if(!hasPermission('canManageUsers')) { alert('You do not have permission to manage users'); return; }
   document.getElementById('userForm').reset();
   document.getElementById('userId').value='';
   populateUsersList();
@@ -1531,17 +2046,22 @@ function editUser(id){
   document.getElementById('userCanViewEmployees').checked = !!permissions.canViewEmployees;
   document.getElementById('userCanViewSuppliers').checked = !!permissions.canViewSuppliers;
   document.getElementById('userCanViewDeposits').checked = !!permissions.canViewDeposits;
+  document.getElementById('userCanViewTaxInvoice').checked = !!permissions.canViewTaxInvoice;
   document.getElementById('userCanViewRecords').checked = !!permissions.canViewRecords;
   document.getElementById('userCanViewSettings').checked = !!permissions.canViewSettings;
   document.getElementById('userCanCreateSales').checked = permissions.canCreateSales !== false;
   document.getElementById('userCanEditData').checked = !!permissions.canEditData;
   document.getElementById('userCanDeleteData').checked = !!permissions.canDeleteData;
+  document.getElementById('userCanManageUsers').checked = !!permissions.canManageUsers;
+  document.getElementById('userCanSaveSettings').checked = !!permissions.canSaveSettings;
   
   document.getElementById('userModal').style.display = 'flex';
 }
 
 document.getElementById('userForm').addEventListener('submit', e=>{
   e.preventDefault();
+  if(!hasPermission('canSaveSettings')) { alert('You do not have permission to save user settings'); return; }
+  
   const id = document.getElementById('userId').value || idf();
   const username = document.getElementById('userName').value.trim();
   const password = document.getElementById('userPass').value;
@@ -1555,11 +2075,14 @@ document.getElementById('userForm').addEventListener('submit', e=>{
     canViewEmployees: document.getElementById('userCanViewEmployees').checked,
     canViewSuppliers: document.getElementById('userCanViewSuppliers').checked,
     canViewDeposits: document.getElementById('userCanViewDeposits').checked,
+    canViewTaxInvoice: document.getElementById('userCanViewTaxInvoice').checked,
     canViewRecords: document.getElementById('userCanViewRecords').checked,
     canViewSettings: document.getElementById('userCanViewSettings').checked,
     canCreateSales: document.getElementById('userCanCreateSales').checked,
     canEditData: document.getElementById('userCanEditData').checked,
-    canDeleteData: document.getElementById('userCanDeleteData').checked
+    canDeleteData: document.getElementById('userCanDeleteData').checked,
+    canManageUsers: document.getElementById('userCanManageUsers').checked,
+    canSaveSettings: document.getElementById('userCanSaveSettings').checked
   };
   
   if(state.users.some(u=>u.username === username && u.id !== id)){ alert('Username already exists'); return; }
@@ -1571,10 +2094,12 @@ document.getElementById('userForm').addEventListener('submit', e=>{
 });
 
 /* ===========================
-   COMPANY SETTINGS
+   COMPANY & BUILDER SETTINGS
    =========================== */
 document.getElementById('companyForm').addEventListener('submit', e=>{
   e.preventDefault();
+  if(!hasPermission('canSaveSettings')) { alert('You do not have permission to save company settings'); return; }
+  
   state.company = {
     name: document.getElementById('companyName').value,
     location: document.getElementById('companyLocation').value,
@@ -1586,18 +2111,32 @@ document.getElementById('companyForm').addEventListener('submit', e=>{
   alert('Company details saved successfully!');
 });
 
-/* SETTINGS area render (Admin-only) */
+document.getElementById('builderForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  if(!hasPermission('canSaveSettings')) { alert('You do not have permission to save builder settings'); return; }
+  
+  state.builder = {
+    name: document.getElementById('builderName').value,
+    contact: document.getElementById('builderContact').value,
+    website: document.getElementById('builderWebsite').value
+  };
+  save(); 
+  alert('Builder details saved successfully!');
+});
+
+/* SETTINGS area render (Permission-based) */
 function renderSettingsAdmin(){
   if(!hasPermission('canViewSettings')) return;
   const container = document.getElementById('settingsAdminArea'); container.innerHTML='';
   const user = currentUser();
-  if(!user || user.role !== 'admin'){ 
-    container.innerHTML = '<p class="muted">Only admin can manage users and company settings.</p>'; 
-    return; 
+  
+  if(hasPermission('canManageUsers')){ 
+    container.innerHTML += '<p>Configure system preferences here.</p>';
+    const btn = document.createElement('button'); btn.className='btn btn-primary'; btn.textContent='Manage Users'; btn.onclick = openUserModal;
+    container.appendChild(btn);
+  } else {
+    container.innerHTML += '<p class="muted">Contact administrator for user management access.</p>'; 
   }
-  container.innerHTML = '<p>Configure system preferences here. (Admin only: manage users)</p>';
-  const btn = document.createElement('button'); btn.className='btn btn-primary'; btn.textContent='Manage Users'; btn.onclick = openUserModal;
-  container.appendChild(btn);
   
   // Load company settings
   if(state.company){
@@ -1606,6 +2145,28 @@ function renderSettingsAdmin(){
     document.getElementById('companyBox').value = state.company.box || '';
     document.getElementById('companyTel').value = state.company.tel || '';
     document.getElementById('companyEmail').value = state.company.email || '';
+  }
+  
+  // Load builder settings
+  if(state.builder){
+    document.getElementById('builderName').value = state.builder.name || '';
+    document.getElementById('builderContact').value = state.builder.contact || '';
+    document.getElementById('builderWebsite').value = state.builder.website || '';
+  }
+  
+  // Disable save buttons if user doesn't have permission
+  const saveCompanyBtn = document.getElementById('saveCompanyBtn');
+  const saveBuilderBtn = document.getElementById('saveBuilderBtn');
+  if(!hasPermission('canSaveSettings')) {
+    saveCompanyBtn.disabled = true;
+    saveBuilderBtn.disabled = true;
+    saveCompanyBtn.textContent = 'No Permission';
+    saveBuilderBtn.textContent = 'No Permission';
+  } else {
+    saveCompanyBtn.disabled = false;
+    saveBuilderBtn.disabled = false;
+    saveCompanyBtn.textContent = 'Save Company';
+    saveBuilderBtn.textContent = 'Save Builder Info';
   }
 }
 
@@ -1628,6 +2189,7 @@ function updateUIForAuth(){
       'employees': 'canViewEmployees',
       'suppliers': 'canViewSuppliers',
       'deposits': 'canViewDeposits',
+      'tax-invoice': 'canViewTaxInvoice',
       'records': 'canViewRecords',
       'settings': 'canViewSettings'
     };
@@ -1661,6 +2223,7 @@ function updateUIForAuth(){
 function renderAll(){
   renderSales(); 
   renderInventory(); 
+  renderTaxInvoices();
   renderExpenses(); 
   renderEmployees(); 
   renderSuppliers(); 
@@ -1673,6 +2236,7 @@ function renderAll(){
 
 // Initialize
 renderAll();
+updateLoginBranding();
 if(!currentUser()) showLogin(); else hideLogin();
 </script>
 </body>
