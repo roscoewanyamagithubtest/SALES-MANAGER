@@ -30,6 +30,7 @@
     .btn-primary{background:var(--accent);color:#fff;}
     .btn-danger{background:#ef4444;color:#fff;}
     .btn-secondary{background:#64748b;color:#fff;}
+    .btn-prepaid{background:#f59e0b;color:#fff;}
     .muted{color:var(--muted);font-size:0.9em}
     .small{font-size:0.9em;padding:4px 8px}
     .unsaved{background-color:rgba(255,215,0,0.1);border-left:4px solid #ffd700;}
@@ -48,6 +49,8 @@
     .permission-item{background:#f8f9fa;padding:10px;border-radius:8px;display:flex;align-items:center;gap:8px;}
     .search-container{display:flex;gap:10px;margin:10px 0;align-items:center;flex-wrap:wrap;}
     .company-branding{text-align:center;margin:10px 0;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px;}
+    .deposit-customer{background:rgba(34,197,94,0.1);padding:10px;border-radius:8px;margin-bottom:10px;border-left:4px solid #22c55e;}
+    .balance-info{font-weight:bold;color:#22c55e;margin:10px 0;padding:10px;background:rgba(34,197,94,0.1);border-radius:8px;}
     @media(max-width:768px){
       .sidebar{width:70px;padding:10px;}
       .sidebar .logo h1,.sidebar .nav-item div{display:none;}
@@ -123,10 +126,11 @@
     <section data-view="sales" class="view card" style="display:none">
       <h2>Sales 
         <button class="btn btn-primary" id="newSaleBtn" onclick="openSaleModal()">+ New Sale</button>
+        <button class="btn btn-prepaid" onclick="openPrepaidSaleModal()">💰 Prepaid Sale</button>
         <button class="btn btn-secondary" onclick="printSales()">🖨️ Print All Sales</button>
       </h2>
       <table class="table" id="salesTable">
-        <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Total</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
     </section>
@@ -213,9 +217,15 @@
         <button class="btn btn-secondary" onclick="printDeposits()">🖨️ Print</button>
       </h2>
       <div class="search-container">
-        <label>Search Customer: <input id="depositSearchCustomer" placeholder="Search by customer name" /></label>
+        <label>Search Customer: <input id="depositSearchCustomer" placeholder="Search by customer name" onkeyup="searchDepositsLive()" /></label>
         <button class="btn btn-secondary" onclick="searchDeposits()">🔍 Search</button>
         <button class="btn btn-secondary" onclick="renderDeposits()">Reset</button>
+      </div>
+      <div id="depositSearchResults" style="display:none;" class="deposit-customer">
+        <h4>Customer Found:</h4>
+        <div id="foundCustomerInfo"></div>
+        <div class="balance-info" id="balanceDisplay"></div>
+        <button class="btn btn-primary" onclick="depositForCustomer()">💰 Deposit for this Customer</button>
       </div>
       <table class="table" id="depositsTable">
         <thead>
@@ -240,6 +250,7 @@
             <option>Inventory</option>
             <option>Deposit</option>
             <option>Tax Invoice</option>
+            <option>Prepaid Sale</option>
           </select>
         </label>
         <label>Text: <input id="recordsText" placeholder="search details/ref/meta" /></label>
@@ -436,6 +447,36 @@
   </div>
 </div>
 
+<!-- Prepaid Sale Modal -->
+<div id="prepaidSaleModal" class="modal">
+  <div class="modal-box">
+    <h2>Prepaid Sale</h2>
+    <form id="prepaidSaleForm">
+      <label>Search Customer:</label>
+      <input id="prepaidCustomerSearch" placeholder="Type customer name" onkeyup="searchCustomersForPrepaid()" />
+      <div id="prepaidCustomerResults"></div>
+      
+      <div id="prepaidSaleDetails" style="display:none;">
+        <hr>
+        <div id="selectedCustomerInfo"></div>
+        <div class="balance-info" id="selectedCustomerBalance"></div>
+        
+        <div id="prepaidSaleItems"></div>
+        <button type="button" class="btn btn-secondary" onclick="addPrepaidSaleItem()">+ Add Product</button>
+        
+        <div style="margin-top:10px;text-align:right;">
+          <strong id="prepaidSaleTotalDisplay">Total: UGX 0</strong>
+        </div>
+        
+        <div style="margin-top:10px;text-align:right;">
+          <button type="submit" class="btn btn-prepaid">Process Prepaid Sale</button>
+          <button type="button" class="btn btn-secondary" onclick="closePrepaidSaleModal()">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Tax Invoice Modal -->
 <div id="taxInvoiceModal" class="modal">
   <div class="modal-box">
@@ -539,6 +580,7 @@
     <h2>Add Deposit</h2>
     <form id="depositForm">
       <input type="hidden" id="depositId"/>
+      <input type="hidden" id="depositCustomerId"/>
       <label>Date</label><input type="date" id="depositDate" required/>
       <label>Client</label>
       <input id="depositClient" required list="clientSuggestions"/>
@@ -575,7 +617,7 @@
 /* ===========================
    STORAGE & INITIAL STATE
    =========================== */
-const STORAGE_KEY = "sales_system_data_v5_enhanced";
+const STORAGE_KEY = "sales_system_data_v6_enhanced_prepaid";
 const fmt = n => "UGX " + Number(n||0).toLocaleString();
 const idf = () => Math.random().toString(36).substr(2,9);
 
@@ -587,6 +629,7 @@ if(!state.employees) state.employees=[];
 if(!state.suppliers) state.suppliers=[];
 if(!state.deposits) state.deposits=[];
 if(!state.taxInvoices) state.taxInvoices=[];
+if(!state.prepaidSales) state.prepaidSales=[];
 if(!state.users) {
   // default admin user (client-side demo) with full permissions
   state.users = [
@@ -617,6 +660,9 @@ if(!state.users) {
 if(!state.meta) state.meta={currentUserId:null};
 if(!state.company) state.company={name:'', location:'', box:'', tel:'', email:''};
 if(!state.builder) state.builder={name:'Software Builder', contact:'contact@builder.com', website:'www.builder.com'};
+
+// Global variable for currently selected customer in prepaid sale
+let selectedPrepaidCustomer = null;
 
 // helper to persist
 function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); updateUIForAuth(); updateDashboard(); updateLoginBranding(); }
@@ -658,6 +704,7 @@ function builderFooterHTML(){
 // Update dashboard statistics - show deposits amount not total products
 function updateDashboard(){
   const totalSales = state.sales.reduce((sum, s) => sum + (s.total || 0), 0);
+  const totalPrepaidSales = state.prepaidSales.reduce((sum, s) => sum + (s.total || 0), 0);
   const totalExpenses = state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   const inventoryCount = state.inventory.length;
   // Calculate current deposit balances (amount - used)
@@ -671,7 +718,7 @@ function updateDashboard(){
   const dashInventory = document.getElementById('dashInventoryCount');
   const dashDeposits = document.getElementById('dashTotalDeposits');
   
-  if(dashSales) dashSales.textContent = fmt(totalSales);
+  if(dashSales) dashSales.textContent = fmt(totalSales + totalPrepaidSales);
   if(dashExpenses) dashExpenses.textContent = fmt(totalExpenses);
   if(dashInventory) dashInventory.textContent = inventoryCount;
   if(dashDeposits) dashDeposits.textContent = fmt(totalDepositBalances);
@@ -762,12 +809,62 @@ function showAccessDenied(){
 }
 
 /* ===========================
+   HELPER FUNCTIONS FOR CUSTOMER BALANCE
+   =========================== */
+function getCustomerBalance(customerName) {
+  const customerDeposits = state.deposits.filter(d => 
+    d.client.toLowerCase().trim() === customerName.toLowerCase().trim()
+  );
+  
+  let totalBalance = 0;
+  customerDeposits.forEach(d => {
+    totalBalance += Number(d.amount || 0) - Number(d.used || 0);
+  });
+  
+  return totalBalance;
+}
+
+function getCustomerDeposits(customerName) {
+  return state.deposits.filter(d => 
+    d.client.toLowerCase().trim() === customerName.toLowerCase().trim()
+  );
+}
+
+function useCustomerBalance(customerName, amount) {
+  const customerDeposits = state.deposits.filter(d => 
+    d.client.toLowerCase().trim() === customerName.toLowerCase().trim() &&
+    (Number(d.amount || 0) - Number(d.used || 0)) > 0
+  ).sort((a, b) => new Date(a.date) - new Date(b.date)); // Use oldest first
+  
+  let remainingAmount = amount;
+  
+  for (let deposit of customerDeposits) {
+    if (remainingAmount <= 0) break;
+    
+    const availableBalance = Number(deposit.amount || 0) - Number(deposit.used || 0);
+    const useAmount = Math.min(remainingAmount, availableBalance);
+    
+    deposit.used = Number(deposit.used || 0) + useAmount;
+    remainingAmount -= useAmount;
+  }
+  
+  return remainingAmount === 0;
+}
+
+/* ===========================
    SALES (with save status tracking)
    =========================== */
 function renderSales(){
   if(!hasPermission('canViewSales')) return;
   const tbody = document.querySelector('#salesTable tbody'); tbody.innerHTML='';
-  state.sales.forEach((s, index) => {
+  
+  // Combine regular sales and prepaid sales
+  const allSales = [
+    ...state.sales.map(s => ({...s, type: 'Regular'})),
+    ...state.prepaidSales.map(s => ({...s, type: 'Prepaid'}))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  allSales.forEach((s, index) => {
     const items = s.items ? s.items.map(i=>`${i.name} x${i.qty} @ ${fmt(i.price)}`).join(', ') : 'No items';
     const tr=document.createElement('tr');
     const isSaved = s.saved !== false;
@@ -775,13 +872,13 @@ function renderSales(){
                                 : '<span style="background:#f59e0b;color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">Unsaved</span>';
     
     tr.className = isSaved ? 'saved' : 'unsaved';
-    tr.innerHTML=`<td>${s.date}</td><td>${s.customer}</td><td>${items}</td><td>${fmt(s.total)}</td><td>${statusBadge}</td>
+    tr.innerHTML=`<td>${s.date}</td><td>${s.customer}</td><td>${items}</td><td>${fmt(s.total)}</td><td><span style="background:${s.type === 'Prepaid' ? '#f59e0b' : '#06b6d4'};color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">${s.type}</span></td><td>${statusBadge}</td>
       <td>
-        <button class="btn btn-secondary small" onclick="printSale('${s.id}')">🖨️</button>
-        ${!isSaved && hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editSale(${index})">Edit</button>` : ''}
-        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteSale('${s.id}')">Delete</button>` : ''}
-        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markSaleSaved('${s.id}')">Mark Saved</button>` : ''}
-        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteSale('${s.id}')">Admin Delete</button>` : ''}
+        <button class="btn btn-secondary small" onclick="printSale('${s.id}', '${s.type}')">🖨️</button>
+        ${!isSaved && hasPermission('canEditData') && s.type === 'Regular' ? `<button class="btn btn-primary small" onclick="editSale(${state.sales.findIndex(sale => sale.id === s.id)})">Edit</button>` : ''}
+        ${!isSaved && hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteSale('${s.id}', '${s.type}')">Delete</button>` : ''}
+        ${!isSaved ? `<button class="btn btn-secondary small" onclick="markSaleSaved('${s.id}', '${s.type}')">Mark Saved</button>` : ''}
+        ${currentUser() && currentUser().role === 'admin' && isSaved ? `<button class="btn btn-danger small" onclick="adminDeleteSale('${s.id}', '${s.type}')">Admin Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -914,11 +1011,18 @@ function editSale(index){
   document.getElementById('saleModal').style.display='flex';
 }
 
-function deleteSale(id){
+function deleteSale(id, type){
   if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete sales'); return; }
-  if(!confirm('Delete this sale?')) return;
-  const sale = state.sales.find(s=>s.id===id);
+  
+  let sale;
+  if (type === 'Prepaid') {
+    sale = state.prepaidSales.find(s=>s.id===id);
+  } else {
+    sale = state.sales.find(s=>s.id===id);
+  }
+  
   if(sale && sale.saved) return alert('Cannot delete saved sales');
+  if(!confirm('Delete this sale?')) return;
   
   if(sale && sale.items){
     sale.items.forEach(it=>{
@@ -926,28 +1030,52 @@ function deleteSale(id){
       if(inv) inv.qty = Number(inv.qty) + Number(it.qty);
     });
   }
-  state.sales = state.sales.filter(s=>s.id!==id);
+  
+  if (type === 'Prepaid') {
+    state.prepaidSales = state.prepaidSales.filter(s=>s.id!==id);
+  } else {
+    state.sales = state.sales.filter(s=>s.id!==id);
+  }
+  
   save(); renderSales(); renderRecords(); renderInventory();
 }
 
-function adminDeleteSale(id){
+function adminDeleteSale(id, type){
   const user = currentUser();
   if(!user || user.role !== 'admin') return alert('Admin only');
   if(!confirm('Admin delete this saved sale?')) return;
   
-  const sale = state.sales.find(s=>s.id===id);
+  let sale;
+  if (type === 'Prepaid') {
+    sale = state.prepaidSales.find(s=>s.id===id);
+  } else {
+    sale = state.sales.find(s=>s.id===id);
+  }
+  
   if(sale && sale.items){
     sale.items.forEach(it=>{
       const inv = state.inventory.find(i=>i.id===it.id);
       if(inv) inv.qty = Number(inv.qty) + Number(it.qty);
     });
   }
-  state.sales = state.sales.filter(s=>s.id!==id);
+  
+  if (type === 'Prepaid') {
+    state.prepaidSales = state.prepaidSales.filter(s=>s.id!==id);
+  } else {
+    state.sales = state.sales.filter(s=>s.id!==id);
+  }
+  
   save(); renderSales(); renderRecords(); renderInventory();
 }
 
-function markSaleSaved(id){
-  const sale = state.sales.find(s => s.id === id);
+function markSaleSaved(id, type){
+  let sale;
+  if (type === 'Prepaid') {
+    sale = state.prepaidSales.find(s => s.id === id);
+  } else {
+    sale = state.sales.find(s => s.id === id);
+  }
+  
   if(sale) {
     sale.saved = true;
     save();
@@ -955,13 +1083,22 @@ function markSaleSaved(id){
   }
 }
 
-function printSale(id){
-  const s=state.sales.find(s=>s.id===id);
+function printSale(id, type){
+  let s;
+  if (type === 'Prepaid') {
+    s = state.prepaidSales.find(s=>s.id===id);
+  } else {
+    s = state.sales.find(s=>s.id===id);
+  }
+  
   if(!s) return alert('Sale not found');
   let html = companyHeaderHTML();
-  html += `<h3 style="text-align:center">Receipt</h3><p>Customer: ${s.customer}<br>Contact: ${s.contact}<br>Date: ${s.date}</p><table border="1" style="width:100%;border-collapse:collapse;"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>`;
+  html += `<h3 style="text-align:center">${type} Sale Receipt</h3><p>Customer: ${s.customer}<br>Contact: ${s.contact}<br>Date: ${s.date}</p><table border="1" style="width:100%;border-collapse:collapse;"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>`;
   s.items.forEach(i=>{html+=`<tr><td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price)}</td><td>${fmt(i.qty * i.price)}</td></tr>`});
   html+=`</table><p><strong>Total: ${fmt(s.total)}</strong></p>`;
+  if (type === 'Prepaid' && s.usedFromBalance) {
+    html += `<p><strong>Paid from deposit balance: ${fmt(s.usedFromBalance)}</strong></p>`;
+  }
   html += builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
@@ -970,6 +1107,251 @@ function printSales(){
   const html=companyHeaderHTML()+'<h3>All Sales</h3>'+document.querySelector('#salesTable').outerHTML + builderFooterHTML(); 
   const w=window.open(''); w.document.write(html); w.print();
 }
+
+/* ===========================
+   PREPAID SALES FUNCTIONALITY
+   =========================== */
+function openPrepaidSaleModal(){
+  if(!hasPermission('canCreateSales')) { alert('You do not have permission to create sales'); return; }
+  
+  document.getElementById('prepaidSaleForm').reset();
+  document.getElementById('prepaidCustomerSearch').value = '';
+  document.getElementById('prepaidCustomerResults').innerHTML = '';
+  document.getElementById('prepaidSaleDetails').style.display = 'none';
+  document.getElementById('prepaidSaleItems').innerHTML = '';
+  selectedPrepaidCustomer = null;
+  document.getElementById('prepaidSaleModal').style.display = 'flex';
+}
+
+function closePrepaidSaleModal(){
+  document.getElementById('prepaidSaleModal').style.display = 'none';
+  selectedPrepaidCustomer = null;
+}
+
+function searchCustomersForPrepaid(){
+  const searchTerm = document.getElementById('prepaidCustomerSearch').value.toLowerCase().trim();
+  const resultsDiv = document.getElementById('prepaidCustomerResults');
+  
+  if(searchTerm.length < 2) {
+    resultsDiv.innerHTML = '';
+    return;
+  }
+  
+  // Get unique customers with deposits
+  const customers = [...new Set(state.deposits.map(d => d.client))];
+  const matchingCustomers = customers.filter(customer => 
+    customer.toLowerCase().includes(searchTerm)
+  );
+  
+  resultsDiv.innerHTML = '';
+  matchingCustomers.forEach(customer => {
+    const balance = getCustomerBalance(customer);
+    if(balance > 0) { // Only show customers with positive balance
+      const customerDiv = document.createElement('div');
+      customerDiv.style.cssText = 'padding:10px;margin:5px 0;background:#f0f8ff;border-radius:8px;cursor:pointer;border:1px solid #ddd;';
+      customerDiv.innerHTML = `<strong>${customer}</strong><br><span style="color:#22c55e;">Balance: ${fmt(balance)}</span>`;
+      customerDiv.onclick = () => selectCustomerForPrepaid(customer, balance);
+      resultsDiv.appendChild(customerDiv);
+    }
+  });
+  
+  if(matchingCustomers.length === 0) {
+    resultsDiv.innerHTML = '<p style="color:#666;">No customers found with deposits.</p>';
+  } else if(matchingCustomers.filter(c => getCustomerBalance(c) > 0).length === 0) {
+    resultsDiv.innerHTML = '<p style="color:#666;">No customers found with positive balance.</p>';
+  }
+}
+
+function selectCustomerForPrepaid(customerName, balance){
+  selectedPrepaidCustomer = customerName;
+  
+  document.getElementById('selectedCustomerInfo').innerHTML = `<h4>Selected Customer: ${customerName}</h4>`;
+  document.getElementById('selectedCustomerBalance').innerHTML = `Available Balance: ${fmt(balance)}`;
+  
+  document.getElementById('prepaidSaleDetails').style.display = 'block';
+  document.getElementById('prepaidCustomerResults').innerHTML = '';
+  document.getElementById('prepaidCustomerSearch').value = customerName;
+  
+  // Clear and add first item
+  document.getElementById('prepaidSaleItems').innerHTML = '';
+  addPrepaidSaleItem();
+}
+
+function addPrepaidSaleItem(){
+  const div = document.createElement('div'); 
+  div.style.display = 'flex'; 
+  div.style.gap = '5px'; 
+  div.style.marginBottom = '6px';
+  
+  const select = document.createElement('select'); 
+  select.required = true;
+  select.style.flex = '2';
+  
+  (state.inventory.length ? state.inventory : [{id:'',name:'-- no items --',cost:0}]).forEach(i => {
+    const opt = document.createElement('option');
+    opt.value = i.id;
+    opt.dataset.cost = i.cost;
+    opt.textContent = i.name + (i.qty !== undefined ? ` (stock:${i.qty})` : '');
+    select.appendChild(opt);
+  });
+  
+  const qty = document.createElement('input'); 
+  qty.type = 'number'; 
+  qty.placeholder = 'Qty'; 
+  qty.min = 1; 
+  qty.required = true; 
+  qty.value = 1; 
+  qty.style.width = '80px';
+  
+  const price = document.createElement('input'); 
+  price.type = 'number'; 
+  price.placeholder = 'Price'; 
+  price.style.width = '120px'; 
+  price.required = true;
+  
+  select.addEventListener('change', () => {
+    const sel = state.inventory.find(it => it.id === select.value);
+    price.value = sel ? sel.cost : 0;
+    updatePrepaidSaleTotal();
+  });
+  
+  const rm = document.createElement('button'); 
+  rm.type = 'button'; 
+  rm.textContent = '❌'; 
+  rm.onclick = () => { 
+    div.remove(); 
+    updatePrepaidSaleTotal(); 
+  };
+  
+  qty.addEventListener('input', updatePrepaidSaleTotal);
+  price.addEventListener('input', updatePrepaidSaleTotal);
+  
+  div.appendChild(select);
+  div.appendChild(qty);
+  div.appendChild(price);
+  div.appendChild(rm);
+  document.getElementById('prepaidSaleItems').appendChild(div);
+  
+  // Auto-select first item and set price
+  if(state.inventory.length > 0) {
+    select.value = state.inventory[0].id;
+    price.value = state.inventory[0].cost;
+  }
+  
+  updatePrepaidSaleTotal();
+}
+
+function updatePrepaidSaleTotal(){
+  let total = 0;
+  document.querySelectorAll('#prepaidSaleItems div').forEach(div => {
+    const inputs = div.querySelectorAll('input[type=number]');
+    const qty = Number(inputs[0].value || 0);
+    const price = Number(inputs[1].value || 0);
+    total += qty * price;
+  });
+  
+  const customerBalance = selectedPrepaidCustomer ? getCustomerBalance(selectedPrepaidCustomer) : 0;
+  const balanceAfterSale = Math.max(0, customerBalance - total);
+  
+  document.getElementById('prepaidSaleTotalDisplay').innerHTML = 
+    `Total: ${fmt(total)}<br><small>Balance after sale: ${fmt(balanceAfterSale)}</small>`;
+  
+  return total;
+}
+
+document.getElementById('prepaidSaleForm').addEventListener('submit', e => {
+  e.preventDefault();
+  
+  if (!selectedPrepaidCustomer) {
+    alert('Please select a customer first');
+    return;
+  }
+  
+  const items = [];
+  let total = 0;
+  let valid = true;
+  
+  document.querySelectorAll('#prepaidSaleItems div').forEach(div => {
+    const sel = div.querySelector('select');
+    const inputs = div.querySelectorAll('input[type=number]');
+    const qty = Number(inputs[0].value || 0);
+    const price = Number(inputs[1].value || 0);
+    const itemInv = state.inventory.find(i => i.id === sel.value);
+    const name = itemInv ? itemInv.name : sel.options[sel.selectedIndex].text;
+    
+    if (qty <= 0) { 
+      valid = false; 
+    }
+    
+    items.push({id: sel.value, name, qty, price});
+    total += price * qty;
+  });
+  
+  if (!valid) { 
+    alert('Please enter valid quantities'); 
+    return; 
+  }
+  
+  const customerBalance = getCustomerBalance(selectedPrepaidCustomer);
+  
+  if (customerBalance < total) {
+    alert(`Insufficient balance. Customer balance: ${fmt(customerBalance)}, Sale total: ${fmt(total)}`);
+    return;
+  }
+  
+  // Use customer balance
+  if (!useCustomerBalance(selectedPrepaidCustomer, total)) {
+    alert('Error processing payment from balance');
+    return;
+  }
+  
+  // Reduce inventory
+  items.forEach(item => {
+    const itemInv = state.inventory.find(i => i.id === item.id);
+    if (itemInv) {
+      itemInv.qty = Number(itemInv.qty) - item.qty;
+      if (itemInv.qty < 0) itemInv.qty = 0;
+    }
+  });
+  
+  // Create prepaid sale record
+  const prepaidSaleData = {
+    id: idf(),
+    date: new Date().toISOString().slice(0, 10),
+    customer: selectedPrepaidCustomer,
+    contact: '', // Could be enhanced to store customer contact
+    items,
+    total,
+    usedFromBalance: total,
+    saved: false
+  };
+  
+  state.prepaidSales.push(prepaidSaleData);
+  
+  // Check if customer balance is now zero and remove them from system if requested
+  const newBalance = getCustomerBalance(selectedPrepaidCustomer);
+  if (newBalance === 0) {
+    const shouldRemove = confirm(`${selectedPrepaidCustomer}'s balance is now zero. Remove customer from system?`);
+    if (shouldRemove) {
+      state.deposits = state.deposits.filter(d => 
+        d.client.toLowerCase().trim() !== selectedPrepaidCustomer.toLowerCase().trim()
+      );
+    }
+  }
+  
+  save();
+  renderSales();
+  renderInventory();
+  renderDeposits();
+  renderRecords();
+  closePrepaidSaleModal();
+  
+  // Print receipt automatically
+  alert(`Prepaid sale completed successfully! Balance used: ${fmt(total)}`);
+  if (confirm('Print receipt?')) {
+    printSale(prepaidSaleData.id, 'Prepaid');
+  }
+});
 
 /* ===========================
    TAX INVOICE (new section)
@@ -1655,7 +2037,7 @@ function printSuppliers(){
 }
 
 /* ===========================
-   DEPOSITS (enhanced with search and top-up)
+   DEPOSITS (enhanced with search and top-up and prepaid functionality)
    =========================== */
 function populateClientSuggestions(){
   const datalist = document.getElementById('clientSuggestions');
@@ -1692,6 +2074,38 @@ function renderDeposits(){
   });
 }
 
+function searchDepositsLive(){
+  const searchTerm = document.getElementById('depositSearchCustomer').value.toLowerCase().trim();
+  const resultsDiv = document.getElementById('depositSearchResults');
+  
+  if(searchTerm.length < 2) {
+    resultsDiv.style.display = 'none';
+    return;
+  }
+  
+  // Get unique customers with deposits
+  const customers = [...new Set(state.deposits.map(d => d.client))];
+  const matchingCustomers = customers.filter(customer => 
+    customer.toLowerCase().includes(searchTerm)
+  );
+  
+  if(matchingCustomers.length === 1) {
+    const customer = matchingCustomers[0];
+    const balance = getCustomerBalance(customer);
+    const deposits = getCustomerDeposits(customer);
+    
+    document.getElementById('foundCustomerInfo').innerHTML = `
+      <p><strong>Customer:</strong> ${customer}</p>
+      <p><strong>Total Deposits:</strong> ${deposits.length}</p>
+      <p><strong>Last Deposit:</strong> ${deposits.length > 0 ? deposits[deposits.length - 1].date : 'N/A'}</p>
+    `;
+    document.getElementById('balanceDisplay').innerHTML = `Available Balance: ${fmt(balance)}`;
+    resultsDiv.style.display = 'block';
+  } else {
+    resultsDiv.style.display = 'none';
+  }
+}
+
 function searchDeposits(){
   const searchTerm = document.getElementById('depositSearchCustomer').value.toLowerCase();
   if(!searchTerm) {
@@ -1725,10 +2139,23 @@ function searchDeposits(){
   });
 }
 
+function depositForCustomer(){
+  const searchTerm = document.getElementById('depositSearchCustomer').value.trim();
+  if(!searchTerm) {
+    alert('Please search for a customer first');
+    return;
+  }
+  
+  openDepositModal();
+  document.getElementById('depositClient').value = searchTerm;
+  document.getElementById('depositCustomerId').value = searchTerm; // Store customer ID for reference
+}
+
 function openDepositModal(){
   if(!hasPermission('canCreateSales')) { alert('You do not have permission to add deposits'); return; }
   document.getElementById('depositForm').reset();
   document.getElementById('depositId').value='';
+  document.getElementById('depositCustomerId').value='';
   document.getElementById('depositDate').value = new Date().toISOString().slice(0,10);
   populateClientSuggestions();
   document.getElementById('depositModal').style.display='flex';
@@ -1770,11 +2197,15 @@ document.getElementById('depositForm').addEventListener('submit', e=>{
   const id=document.getElementById('depositId').value;
   const amount = Number(document.getElementById('depositAmount').value);
   const used = Number(document.getElementById('depositUsed').value || 0);
+  const clientName = document.getElementById('depositClient').value.trim();
+  
+  // Check if this is a deposit for an existing customer (from search)
+  const existingCustomer = document.getElementById('depositCustomerId').value.trim();
   
   const dep={
     id: id || idf(),
     date:document.getElementById('depositDate').value,
-    client:document.getElementById('depositClient').value,
+    client: clientName,
     item:document.getElementById('depositItem').value,
     amount: amount,
     used: used,
@@ -1788,7 +2219,15 @@ document.getElementById('depositForm').addEventListener('submit', e=>{
   } else {
     state.deposits.push(dep);
   }
-  save(); renderDeposits(); renderRecords(); closeDepositModal();
+  
+  save(); 
+  renderDeposits(); 
+  renderRecords(); 
+  closeDepositModal();
+  
+  // Hide search results after successful deposit
+  document.getElementById('depositSearchResults').style.display = 'none';
+  document.getElementById('depositSearchCustomer').value = '';
 });
 
 function editDeposit(index){
@@ -1838,14 +2277,16 @@ function printDeposit(id){
   const d=state.deposits.find(d=>d.id===id);
   if(!d) return alert('Deposit not found');
   let html = companyHeaderHTML();
-  html += `<h3 style="text-align:center">Deposit Receipt</h3>`;
-  html += `<p>Client: ${d.client}<br>Date: ${d.date}</p>`;
-  html += `<p>Item: ${d.item || 'N/A'}</p>`;
+  html += `<h3 style="text-align:center">Customer Deposit Statement</h3>`;
+  html += `<p><strong>Client:</strong> ${d.client}<br><strong>Date:</strong> ${d.date}</p>`;
+  html += `<p><strong>Item/Service:</strong> ${d.item || 'N/A'}</p>`;
   html += `<table border="1" style="width:100%;border-collapse:collapse;">`;
-  html += `<tr><th>Amount</th><td>${fmt(d.amount)}</td></tr>`;
-  html += `<tr><th>Amount Used</th><td>${fmt(d.used || 0)}</td></tr>`;
-  html += `<tr><th>Balance</th><td>${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}</td></tr>`;
+  html += `<tr><th>Description</th><th>Amount</th></tr>`;
+  html += `<tr><td>Deposit Amount</td><td>${fmt(d.amount)}</td></tr>`;
+  html += `<tr><td>Amount Used</td><td>${fmt(d.used || 0)}</td></tr>`;
+  html += `<tr><td><strong>Current Balance</strong></td><td><strong>${fmt(d.remainingBalance || (d.amount - (d.used || 0)))}</strong></td></tr>`;
   html += `</table>`;
+  html += `<p style="margin-top:20px;"><em>This statement shows your current deposit balance. Please keep this for your records.</em></p>`;
   html += builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
@@ -1856,7 +2297,7 @@ function printDeposits(){
 }
 
 /* ===========================
-   RECORDS (with pagination + filters + tax invoice)
+   RECORDS (with pagination + filters + tax invoice + prepaid sales)
    =========================== */
 function buildRecordsArray(){
   const arr = [];
@@ -1869,6 +2310,17 @@ function buildRecordsArray(){
       details: `Customer: ${s.customer}`,
       amount: s.total,
       meta: s.items ? s.items.map(i=>`${i.name} x${i.qty}`).join(', ') : 'No items'
+    });
+  });
+  // Prepaid Sales
+  state.prepaidSales.forEach(s=>{
+    arr.push({
+      type: 'Prepaid Sale',
+      date: s.date,
+      ref: s.id,
+      details: `Customer: ${s.customer} (Prepaid)`,
+      amount: s.total,
+      meta: s.items ? s.items.map(i=>`${i.name} x${i.qty}`).join(', ') + ` | Used from balance: ${fmt(s.usedFromBalance)}` : 'No items'
     });
   });
   // Tax Invoices
@@ -1945,11 +2397,17 @@ function renderRecords(list){
   pageRows.forEach(r=>{
     const tr=document.createElement('tr');
     let amountDisplay = '';
-    if(r.type === 'Sale' || r.type === 'Expense' || r.type === 'Deposit' || r.type === 'Tax Invoice') { amountDisplay = fmt(r.amount); totalMoney += Number(r.amount||0); }
-    else { amountDisplay = r.amount; totalQty += Number(r.amount||0); }
+    if(r.type === 'Sale' || r.type === 'Prepaid Sale' || r.type === 'Expense' || r.type === 'Deposit' || r.type === 'Tax Invoice') { 
+      amountDisplay = fmt(r.amount); 
+      totalMoney += Number(r.amount||0); 
+    } else { 
+      amountDisplay = r.amount; 
+      totalQty += Number(r.amount||0); 
+    }
     tr.innerHTML = `<td>${r.type}</td><td>${r.date}</td><td>${r.ref}</td><td>${r.details}<div style="font-size:0.9em;color:#cbd5e1;margin-top:4px">${r.meta||''}</div></td><td>${amountDisplay}</td>
       <td>
-        ${r.type === 'Sale' ? `<button class="btn btn-secondary small" onclick="printSale('${r.ref}')">🖨️</button>` : ''}
+        ${r.type === 'Sale' ? `<button class="btn btn-secondary small" onclick="printSale('${r.ref}', 'Regular')">🖨️</button>` : ''}
+        ${r.type === 'Prepaid Sale' ? `<button class="btn btn-secondary small" onclick="printSale('${r.ref}', 'Prepaid')">🖨️</button>` : ''}
         ${r.type === 'Tax Invoice' ? `<button class="btn btn-secondary small" onclick="printTaxInvoice('${r.ref}')">🖨️</button>` : ''}
         ${r.type === 'Expense' ? `<button class="btn btn-secondary small" onclick="printExpense('${r.ref}')">🖨️</button>` : ''}
         ${r.type === 'Inventory' ? `<button class="btn btn-secondary small" onclick="printInventoryItem('${r.ref}')">🖨️</button>` : ''}
@@ -1973,7 +2431,9 @@ function adminDeleteRecord(type, ref){
   const user = currentUser();
   if(!user || user.role !== 'admin'){ alert('Admin access required'); return; }
   if(!confirm(`Admin delete this ${type}?`)) return;
-  if(type === 'Sale') adminDeleteSale(ref);
+  
+  if(type === 'Sale') adminDeleteSale(ref, 'Regular');
+  else if(type === 'Prepaid Sale') adminDeleteSale(ref, 'Prepaid');
   else if(type === 'Tax Invoice') adminDeleteTaxInvoice(ref);
   else if(type === 'Expense') adminDeleteExpense(ref);
   else if(type === 'Inventory') adminDeleteInventory(ref);
