@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -57,8 +56,6 @@
     .balance-info{font-weight:bold;color:#22c55e;margin:10px 0;padding:10px;background:rgba(34,197,94,0.1);border-radius:8px;}
     .agreed-amount{background:rgba(239,68,68,0.1);border-left:3px solid #ef4444;padding:10px;margin:10px 0;border-radius:8px;}
     .remaining-balance{background:rgba(245,158,11,0.1);border-left:3px solid #f59e0b;padding:10px;margin:10px 0;border-radius:8px;}
-    .read-only-table{opacity:0.8;}
-    .read-only-table .btn{display:none;}
     @media(max-width:768px){
       .sidebar{width:70px;padding:10px;}
       .sidebar .logo h1,.sidebar .nav-item div{display:none;}
@@ -139,7 +136,7 @@
         <button class="btn btn-secondary" onclick="printSales()">🖨️ Print All Sales</button>
       </h2>
       <div class="muted" style="margin-bottom:10px;">All sales use retail pricing from inventory automatically. Edit/Delete available in Records page only.</div>
-      <table class="table read-only-table" id="salesTable">
+      <table class="table" id="salesTable">
         <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Retail Total</th><th>Type</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
@@ -152,7 +149,7 @@
         <button class="btn btn-secondary" onclick="printInventory()">🖨️ Print</button>
       </h2>
       <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only after saving.</div>
-      <table class="table read-only-table" id="inventoryTable">
+      <table class="table" id="inventoryTable">
         <thead>
           <tr><th>Item</th><th>Category</th><th>Supplier</th><th>Qty</th><th>Factory Price</th><th>Retail Price</th><th>Reorder</th><th>Actions</th></tr>
         </thead>
@@ -167,7 +164,7 @@
         <button class="btn btn-secondary" onclick="printTaxInvoices()">🖨️ Print All Tax Invoices</button>
       </h2>
       <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only after saving.</div>
-      <table class="table read-only-table" id="taxInvoiceTable">
+      <table class="table" id="taxInvoiceTable">
         <thead><tr><th>Date</th><th>Invoice No.</th><th>Customer</th><th>Total Amount</th><th>VAT</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
@@ -186,7 +183,7 @@
         <button class="btn btn-secondary" onclick="searchExpenses()">🔍 Search</button>
         <button class="btn btn-secondary" onclick="renderExpenses()">Reset</button>
       </div>
-      <table class="table read-only-table" id="expensesTable">
+      <table class="table" id="expensesTable">
         <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Actions</th></tr></thead>
         <tbody></tbody>
         <tfoot>
@@ -202,7 +199,7 @@
         <button class="btn btn-secondary" onclick="printEmployees()">🖨️ Print</button>
       </h2>
       <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only after saving.</div>
-      <table class="table read-only-table" id="employeesTable">
+      <table class="table" id="employeesTable">
         <thead>
           <tr><th>Name</th><th>Position</th><th>Email</th><th>Phone</th><th>Actions</th></tr>
         </thead>
@@ -217,7 +214,7 @@
         <button class="btn btn-secondary" onclick="printSuppliers()">🖨️ Print</button>
       </h2>
       <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only after saving.</div>
-      <table class="table read-only-table" id="suppliersTable">
+      <table class="table" id="suppliersTable">
         <thead>
           <tr><th>Name</th><th>Contact</th><th>Email</th><th>Actions</th></tr>
         </thead>
@@ -1766,8 +1763,6 @@ document.getElementById('prepaidSaleForm').addEventListener('submit', e => {
   }
 });
 
-/* Continue with remaining JavaScript functions... */
-
 /* ===========================
    AUTO-SAVE TAX INVOICES
    =========================== */
@@ -2737,7 +2732,7 @@ function updateUIForAuth(){
     profileBtn.onclick = ()=>{
       const perms = user.permissions || {};
       const permList = Object.keys(perms).filter(k=>perms[k]).join(', ');
-      alert(`Profile: ${user.username} (${user.role})\nPermissions: ${permList || 'None'}\n\nAuto-Save: Enabled\nFactory/Retail Pricing: Active\nEdit/Delete: Records Page Only`);
+      alert(`Profile: ${user.username} (${user.role})\nPermissions: ${permList || 'None'}\n\nAuto-Save: Enabled\nFactory/Retail Pricing: Active\nEdit/Delete: Records Page Only\nPrint Buttons: Available on All Pages`);
     };
     qa.appendChild(profileBtn);
   }
