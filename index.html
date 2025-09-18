@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -56,6 +57,8 @@
     .balance-info{font-weight:bold;color:#22c55e;margin:10px 0;padding:10px;background:rgba(34,197,94,0.1);border-radius:8px;}
     .agreed-amount{background:rgba(239,68,68,0.1);border-left:3px solid #ef4444;padding:10px;margin:10px 0;border-radius:8px;}
     .remaining-balance{background:rgba(245,158,11,0.1);border-left:3px solid #f59e0b;padding:10px;margin:10px 0;border-radius:8px;}
+    .read-only-table{opacity:0.8;}
+    .read-only-table .btn{display:none;}
     @media(max-width:768px){
       .sidebar{width:70px;padding:10px;}
       .sidebar .logo h1,.sidebar .nav-item div{display:none;}
@@ -135,8 +138,8 @@
         <button class="btn btn-prepaid" onclick="openPrepaidSaleModal()">💰 Prepaid Sale</button>
         <button class="btn btn-secondary" onclick="printSales()">🖨️ Print All Sales</button>
       </h2>
-      <div class="muted" style="margin-bottom:10px;">All sales use retail pricing from inventory automatically</div>
-      <table class="table" id="salesTable">
+      <div class="muted" style="margin-bottom:10px;">All sales use retail pricing from inventory automatically. Edit/Delete available in Records page only.</div>
+      <table class="table read-only-table" id="salesTable">
         <thead><tr><th>Date</th><th>Customer</th><th>Items</th><th>Retail Total</th><th>Type</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
@@ -148,7 +151,8 @@
         <button class="btn btn-primary" onclick="openInventoryModal()">+ Add Item</button>
         <button class="btn btn-secondary" onclick="printInventory()">🖨️ Print</button>
       </h2>
-      <table class="table" id="inventoryTable">
+      <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only after saving.</div>
+      <table class="table read-only-table" id="inventoryTable">
         <thead>
           <tr><th>Item</th><th>Category</th><th>Supplier</th><th>Qty</th><th>Factory Price</th><th>Retail Price</th><th>Reorder</th><th>Actions</th></tr>
         </thead>
@@ -162,7 +166,8 @@
         <button class="btn btn-primary" onclick="openTaxInvoiceModal()">+ Create Tax Invoice</button>
         <button class="btn btn-secondary" onclick="printTaxInvoices()">🖨️ Print All Tax Invoices</button>
       </h2>
-      <table class="table" id="taxInvoiceTable">
+      <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only after saving.</div>
+      <table class="table read-only-table" id="taxInvoiceTable">
         <thead><tr><th>Date</th><th>Invoice No.</th><th>Customer</th><th>Total Amount</th><th>VAT</th><th>Actions</th></tr></thead>
         <tbody></tbody>
       </table>
@@ -174,13 +179,14 @@
         <button class="btn btn-primary" onclick="openExpenseModal()">+ Add Expense</button>
         <button class="btn btn-secondary" onclick="printExpenses()">🖨️ Print</button>
       </h2>
+      <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only after saving.</div>
       <div style="margin:10px 0;">
         <label>From: <input type="date" id="expenseFrom"></label>
         <label>To: <input type="date" id="expenseTo"></label>
         <button class="btn btn-secondary" onclick="searchExpenses()">🔍 Search</button>
         <button class="btn btn-secondary" onclick="renderExpenses()">Reset</button>
       </div>
-      <table class="table" id="expensesTable">
+      <table class="table read-only-table" id="expensesTable">
         <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Actions</th></tr></thead>
         <tbody></tbody>
         <tfoot>
@@ -195,7 +201,8 @@
         <button class="btn btn-primary" onclick="openEmployeeModal()">+ Add Employee</button>
         <button class="btn btn-secondary" onclick="printEmployees()">🖨️ Print</button>
       </h2>
-      <table class="table" id="employeesTable">
+      <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only after saving.</div>
+      <table class="table read-only-table" id="employeesTable">
         <thead>
           <tr><th>Name</th><th>Position</th><th>Email</th><th>Phone</th><th>Actions</th></tr>
         </thead>
@@ -209,7 +216,8 @@
         <button class="btn btn-primary" onclick="openSupplierModal()">+ Add Supplier</button>
         <button class="btn btn-secondary" onclick="printSuppliers()">🖨️ Print</button>
       </h2>
-      <table class="table" id="suppliersTable">
+      <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only after saving.</div>
+      <table class="table read-only-table" id="suppliersTable">
         <thead>
           <tr><th>Name</th><th>Contact</th><th>Email</th><th>Actions</th></tr>
         </thead>
@@ -223,6 +231,7 @@
         <button class="btn btn-primary" onclick="openDepositModal()">+ New Deposit Agreement</button>
         <button class="btn btn-secondary" onclick="printDeposits()">🖨️ Print</button>
       </h2>
+      <div class="muted" style="margin-bottom:10px;">Edit/Delete available in Records page only. Payment restrictions removed for deposit access users.</div>
       <div class="search-container">
         <label>Search Customer: <input id="depositSearchCustomer" placeholder="Search by customer name" onkeyup="searchDepositsLive()" /></label>
         <button class="btn btn-secondary" onclick="searchDeposits()">🔍 Search</button>
@@ -244,7 +253,7 @@
 
     <!-- Records -->
     <section data-view="records" class="view card" style="display:none">
-      <h2>Company Records</h2>
+      <h2>Company Records - Edit & Delete Hub</h2>
 
       <div style="margin:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <label>From: <input type="date" id="recordsFrom"></label>
@@ -789,6 +798,24 @@ function updateLoginBranding(){
   }
 }
 
+// Clear form function - used after successful saves
+function clearForm(formId) {
+  const form = document.getElementById(formId);
+  if (form) {
+    form.reset();
+    // Reset any hidden fields
+    const hiddenInputs = form.querySelectorAll('input[type="hidden"]');
+    hiddenInputs.forEach(input => input.value = '');
+    // Clear dynamic content areas
+    const saleItems = form.querySelector('#saleItems');
+    if (saleItems) saleItems.innerHTML = '';
+    const taxInvoiceItems = form.querySelector('#taxInvoiceItems');
+    if (taxInvoiceItems) taxInvoiceItems.innerHTML = '';
+    const prepaidSaleItems = form.querySelector('#prepaidSaleItems');
+    if (prepaidSaleItems) prepaidSaleItems.innerHTML = '';
+  }
+}
+
 /* ===========================
    AUTH SYSTEM
    =========================== */
@@ -893,7 +920,7 @@ function useCustomerBalance(customerName, amount) {
 }
 
 /* ===========================
-   ENHANCED SALES WITH RETAIL PRICING
+   ENHANCED SALES WITH RETAIL PRICING & DISCOUNTED RECEIPTS
    =========================== */
 function renderSales(){
   if(!hasPermission('canViewSales')) return;
@@ -912,7 +939,6 @@ function renderSales(){
     tr.innerHTML=`<td>${s.date}</td><td>${s.customer}</td><td>${items}</td><td>${fmt(s.total)}</td><td><span style="background:${s.type === 'Prepaid' ? '#f59e0b' : '#06b6d4'};color:white;padding:2px 6px;border-radius:4px;font-size:0.8em;">${s.type}</span></td>
       <td>
         <button class="btn btn-secondary small" onclick="printSale('${s.id}', '${s.type}')">🖨️</button>
-        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteSale('${s.id}', '${s.type}')">Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -920,9 +946,7 @@ function renderSales(){
 
 function openSaleModal(){
   if(!hasPermission('canCreateSales')) { alert('You do not have permission to create sales'); return; }
-  document.getElementById('saleForm').reset();
-  document.getElementById('saleId').value = '';
-  document.getElementById('saleItems').innerHTML='';
+  clearForm('saleForm');
   addSaleItem();
   document.getElementById('saleTotalDisplay').innerText = 'Total: UGX 0';
   document.getElementById('saleModal').style.display='flex';
@@ -1085,8 +1109,31 @@ function printSale(id, type){
   if(!s) return alert('Sale not found');
   let html = companyHeaderHTML();
   html += `<h3 style="text-align:center">${type} Sale Receipt</h3><p>Customer: ${s.customer}<br>Contact: ${s.contact}<br>Date: ${s.date}</p><table border="1" style="width:100%;border-collapse:collapse;"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>`;
-  s.items.forEach(i=>{html+=`<tr><td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price)}</td><td>${fmt(i.qty * i.price)}</td></tr>`});
-  html+=`</table><p><strong>Total: ${fmt(s.total)}</strong></p>`;
+  
+  // FIXED: Show discounted prices on receipt
+  if (s.meta && (s.meta.flatDiscount || s.meta.pctDiscount)) {
+    const originalTotal = s.items.reduce((sum, i) => sum + (i.qty * i.price), 0);
+    const flatDiscount = s.meta.flatDiscount || 0;
+    const pctDiscount = s.meta.pctDiscount || 0;
+    const totalDiscount = flatDiscount + (originalTotal * (pctDiscount / 100));
+    const discountRatio = totalDiscount / originalTotal;
+    
+    s.items.forEach(i => {
+      const itemDiscount = (i.qty * i.price) * discountRatio;
+      const discountedItemTotal = (i.qty * i.price) - itemDiscount;
+      const discountedPrice = discountedItemTotal / i.qty;
+      html += `<tr><td>${i.name}</td><td>${i.qty}</td><td>${fmt(discountedPrice)}</td><td>${fmt(discountedItemTotal)}</td></tr>`;
+    });
+    
+    html += `</table><p style="font-size:0.9em;color:#666;">Discount Applied: Flat ${fmt(flatDiscount)} + ${pctDiscount}%</p>`;
+  } else {
+    s.items.forEach(i => {
+      html += `<tr><td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price)}</td><td>${fmt(i.qty * i.price)}</td></tr>`;
+    });
+    html += `</table>`;
+  }
+  
+  html += `<p><strong>Total: ${fmt(s.total)}</strong></p>`;
   if (type === 'Prepaid' && s.usedFromBalance) {
     html += `<p><strong>Paid from deposit balance: ${fmt(s.usedFromBalance)}</strong></p>`;
   }
@@ -1112,8 +1159,7 @@ function renderInventory(){
     
     tr.innerHTML=`<td>${item.name}</td><td>${item.category||''}</td><td>${item.supplier||''}</td><td>${item.qty}</td><td>${fmt(item.factoryPrice || item.cost || 0)}</td><td>${fmt(item.retailPrice || item.cost || 0)}</td><td>${item.reorder||''}</td>
       <td>
-        ${hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editInventory(${index})">Edit</button>` : ''}
-        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteInventory('${item.id}')">Delete</button>` : ''}
+        <button class="btn btn-secondary small" onclick="printInventoryItem('${item.id}')">🖨️</button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -1121,8 +1167,7 @@ function renderInventory(){
 
 function openInventoryModal(){
   if(!hasPermission('canCreateSales')) { alert('You do not have permission to add inventory'); return; }
-  document.getElementById('inventoryForm').reset();
-  document.getElementById('itemId').value='';
+  clearForm('inventoryForm');
   document.getElementById('inventoryModal').style.display='flex';
 }
 
@@ -1188,8 +1233,17 @@ function printInventory(){
   const w=window.open(''); w.document.write(html); w.print();
 }
 
+function printInventoryItem(id){
+  const i=state.inventory.find(x=>x.id===id);
+  if(!i) return alert('Item not found');
+  let html = companyHeaderHTML();
+  html += `<h3>Inventory Item</h3><p>${i.name}</p><p>Category: ${i.category||'N/A'}</p><p>Qty: ${i.qty}</p><p>Factory Price: ${fmt(i.factoryPrice || i.cost || 0)}</p><p>Retail Price: ${fmt(i.retailPrice || i.cost || 0)}</p>`;
+  html += builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
 /* ===========================
-   ENHANCED DEPOSITS WITH INVENTORY INTEGRATION
+   ENHANCED DEPOSITS WITH INVENTORY INTEGRATION & UNRESTRICTED PAYMENTS
    =========================== */
 function populateInventoryForDeposits() {
   const select = document.getElementById('depositItem');
@@ -1254,7 +1308,6 @@ function renderDeposits(){
       <td>
         <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
         ${remainingBalance > 0 ? `<button class="btn btn-secondary small" onclick="topUpDeposit('${d.id}')">+ Payment</button>` : ''}
-        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -1293,9 +1346,7 @@ function searchDepositsLive(){
 
 function openDepositModal(){
   if(!hasPermission('canCreateSales')) { alert('You do not have permission to add deposits'); return; }
-  document.getElementById('depositForm').reset();
-  document.getElementById('depositId').value='';
-  document.getElementById('depositCustomerId').value='';
+  clearForm('depositForm');
   document.getElementById('depositDate').value = new Date().toISOString().slice(0,10);
   populateInventoryForDeposits();
   document.getElementById('depositModal').style.display='flex';
@@ -1365,7 +1416,7 @@ document.getElementById('depositForm').addEventListener('submit', e=>{
 });
 
 function topUpDeposit(id){
-  if(!hasPermission('canEditData')) { alert('You do not have permission to add payments'); return; }
+  // REMOVED PERMISSION CHECK - Now all users with deposit access can make payments
   const deposit = state.deposits.find(d => d.id === id);
   if(!deposit) return alert('Deposit not found');
   
@@ -1464,7 +1515,6 @@ function searchDeposits(){
       <td>
         <button class="btn btn-secondary small" onclick="printDeposit('${d.id}')">🖨️</button>
         ${remainingBalance > 0 ? `<button class="btn btn-secondary small" onclick="topUpDeposit('${d.id}')">+ Payment</button>` : ''}
-        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteDeposit('${d.id}')">Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -1481,18 +1531,14 @@ function populateClientSuggestions(){
   });
 }
 
-/* Continue with the rest of the JavaScript functions... */
 /* ===========================
-   PREPAID SALES WITH ENHANCED DEPOSITS
+   PREPAID SALES WITH ENHANCED DEPOSITS & AUTO REMOVAL
    =========================== */
 function openPrepaidSaleModal(){
   if(!hasPermission('canCreateSales')) { alert('You do not have permission to create sales'); return; }
  
-  document.getElementById('prepaidSaleForm').reset();
-  document.getElementById('prepaidCustomerSearch').value = '';
-  document.getElementById('prepaidCustomerResults').innerHTML = '';
+  clearForm('prepaidSaleForm');
   document.getElementById('prepaidSaleDetails').style.display = 'none';
-  document.getElementById('prepaidSaleItems').innerHTML = '';
   selectedPrepaidCustomer = null;
   document.getElementById('prepaidSaleModal').style.display = 'flex';
 }
@@ -1698,13 +1744,13 @@ document.getElementById('prepaidSaleForm').addEventListener('submit', e => {
   state.prepaidSales.push(prepaidSaleData);
  
   const newBalance = getCustomerBalance(selectedPrepaidCustomer);
+  
+  // ENHANCED: Automatically remove customer from deposits when balance reaches zero
   if (newBalance === 0) {
-    const shouldRemove = confirm(`${selectedPrepaidCustomer}'s balance is now zero. Remove customer agreements from system?`);
-    if (shouldRemove) {
-      state.deposits = state.deposits.filter(d =>
-        d.client.toLowerCase().trim() !== selectedPrepaidCustomer.toLowerCase().trim()
-      );
-    }
+    state.deposits = state.deposits.filter(d =>
+      d.client.toLowerCase().trim() !== selectedPrepaidCustomer.toLowerCase().trim()
+    );
+    alert(`${selectedPrepaidCustomer}'s balance is now zero. Customer automatically removed from deposits system.`);
   }
  
   save();
@@ -1721,10 +1767,7 @@ document.getElementById('prepaidSaleForm').addEventListener('submit', e => {
 });
 
 /* Continue with remaining JavaScript functions... */
-// I'll include the remaining functions in a separate continuation to avoid length limits
-</script>
 
-<script>
 /* ===========================
    AUTO-SAVE TAX INVOICES
    =========================== */
@@ -1739,8 +1782,6 @@ function renderTaxInvoices(){
     tr.innerHTML=`<td>${t.date}</td><td>${t.invoiceNumber}</td><td>${t.customer}</td><td>${fmt(t.grandTotal)}</td><td>${fmt(t.vatAmount)}</td>
       <td>
         <button class="btn btn-secondary small" onclick="printTaxInvoice('${t.id}')">🖨️</button>
-        ${hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editTaxInvoice(${index})">Edit</button>` : ''}
-        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteTaxInvoice('${t.id}')">Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -1748,9 +1789,7 @@ function renderTaxInvoices(){
 
 function openTaxInvoiceModal(){
   if(!hasPermission('canCreateSales')) { alert('You do not have permission to create tax invoices'); return; }
-  document.getElementById('taxInvoiceForm').reset();
-  document.getElementById('taxInvoiceId').value = '';
-  document.getElementById('taxInvoiceItems').innerHTML='';
+  clearForm('taxInvoiceForm');
   const invoiceNumber = 'INV-' + Date.now();
   document.getElementById('taxInvoiceNumber').value = invoiceNumber;
   addTaxInvoiceItem();
@@ -1981,11 +2020,6 @@ function printTaxInvoices(){
   const w=window.open(''); w.document.write(html); w.print();
 }
 
-/* Continue with remaining auto-save modules and system initialization... */
-
-// Auto-save expenses, employees, suppliers, user management, settings, records, etc.
-// All follow the same pattern: remove manual save status tracking and mark as saved: true automatically
-
 /* ===========================
    AUTO-SAVE EXPENSES
    =========================== */
@@ -2001,8 +2035,7 @@ function renderExpenses(){
    
     tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td>
       <td>
-        ${hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editExpense(${index})">Edit</button>` : ''}
-        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
+        <button class="btn btn-secondary small" onclick="printExpense('${e.id}')">🖨️</button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -2011,8 +2044,7 @@ function renderExpenses(){
 
 function openExpenseModal(){
   if(!hasPermission('canCreateSales')) { alert('You do not have permission to add expenses'); return; }
-  document.getElementById('expenseForm').reset();
-  document.getElementById('expenseId').value='';
+  clearForm('expenseForm');
   document.getElementById('expenseModal').style.display='flex';
 }
 
@@ -2075,8 +2107,7 @@ function searchExpenses(){
    
     tr.innerHTML=`<td>${e.date}</td><td>${e.category}</td><td>${e.description}</td><td>${fmt(e.amount)}</td>
       <td>
-        ${hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editExpense(${state.expenses.findIndex(exp => exp.id === e.id)})">Edit</button>` : ''}
-        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}
+        <button class="btn btn-secondary small" onclick="printExpense('${e.id}')">🖨️</button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -2085,6 +2116,15 @@ function searchExpenses(){
 
 function printExpenses(){
   const html=companyHeaderHTML()+'<h3>Expenses Report</h3>'+document.querySelector('#expensesTable').outerHTML + builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
+function printExpense(id){
+  const e = state.expenses.find(x=>x.id===id);
+  if(!e) return alert('Expense not found');
+  let html = companyHeaderHTML();
+  html += `<h3>Expense Receipt</h3><p>${e.date}</p><p>${e.category} - ${e.description}</p><p>Amount: ${fmt(e.amount)}</p>`;
+  html += builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
 
@@ -2101,8 +2141,7 @@ function renderEmployees(){
    
     tr.innerHTML=`<td>${e.name}</td><td>${e.position||''}</td><td>${e.email||''}</td><td>${e.phone||''}</td>
       <td>
-        ${hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editEmployee(${index})">Edit</button>` : ''}
-        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteEmployee('${e.id}')">Delete</button>` : ''}
+        <button class="btn btn-secondary small" onclick="printEmployee('${e.id}')">🖨️</button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -2110,8 +2149,7 @@ function renderEmployees(){
 
 function openEmployeeModal(){
   if(!hasPermission('canCreateSales')) { alert('You do not have permission to add employees'); return; }
-  document.getElementById('employeeForm').reset();
-  document.getElementById('employeeId').value='';
+  clearForm('employeeForm');
   document.getElementById('employeeModal').style.display='flex';
 }
 
@@ -2167,9 +2205,18 @@ function printEmployees(){
   const w=window.open(''); w.document.write(html); w.print();
 }
 
-/* Continue with suppliers, user management, settings, records system, and final initialization... */
+function printEmployee(id){
+  const e = state.employees.find(x=>x.id===id);
+  if(!e) return alert('Employee not found');
+  let html = companyHeaderHTML();
+  html += `<h3>Employee Details</h3><p>Name: ${e.name}</p><p>Position: ${e.position||'N/A'}</p><p>Email: ${e.email||'N/A'}</p><p>Phone: ${e.phone||'N/A'}</p>`;
+  html += builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
 
-// Suppliers follow the same auto-save pattern
+/* ===========================
+   AUTO-SAVE SUPPLIERS
+   =========================== */
 function renderSuppliers(){
   if(!hasPermission('canViewSuppliers')) return;
   const tbody=document.querySelector('#suppliersTable tbody'); tbody.innerHTML='';
@@ -2180,8 +2227,7 @@ function renderSuppliers(){
    
     tr.innerHTML=`<td>${s.name}</td><td>${s.contact||''}</td><td>${s.email||''}</td>
       <td>
-        ${hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editSupplier(${index})">Edit</button>` : ''}
-        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteSupplier('${s.id}')">Delete</button>` : ''}
+        <button class="btn btn-secondary small" onclick="printSupplier('${s.id}')">🖨️</button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -2189,8 +2235,7 @@ function renderSuppliers(){
 
 function openSupplierModal(){
   if(!hasPermission('canCreateSales')) { alert('You do not have permission to add suppliers'); return; }
-  document.getElementById('supplierForm').reset();
-  document.getElementById('supplierId').value='';
+  clearForm('supplierForm');
   document.getElementById('supplierModal').style.display='flex';
 }
 
@@ -2243,8 +2288,17 @@ function printSuppliers(){
   const w=window.open(''); w.document.write(html); w.print();
 }
 
+function printSupplier(id){
+  const s = state.suppliers.find(x=>x.id===id);
+  if(!s) return alert('Supplier not found');
+  let html = companyHeaderHTML();
+  html += `<h3>Supplier Details</h3><p>Name: ${s.name}</p><p>Contact: ${s.contact||'N/A'}</p><p>Email: ${s.email||'N/A'}</p>`;
+  html += builderFooterHTML();
+  const w=window.open(''); w.document.write(html); w.print();
+}
+
 /* ===========================
-   ENHANCED RECORDS SYSTEM
+   ENHANCED RECORDS SYSTEM WITH EDIT/DELETE FUNCTIONALITY
    =========================== */
 function buildRecordsArray(){
   const arr = [];
@@ -2365,7 +2419,8 @@ function renderRecords(list){
         ${r.type === 'Expense' ? `<button class="btn btn-secondary small" onclick="printExpense('${r.ref}')">🖨️</button>` : ''}
         ${r.type === 'Inventory' ? `<button class="btn btn-secondary small" onclick="printInventoryItem('${r.ref}')">🖨️</button>` : ''}
         ${r.type === 'Deposit' ? `<button class="btn btn-secondary small" onclick="printDeposit('${r.ref}')">🖨️</button>` : ''}
-        ${currentUser() && currentUser().role === 'admin' ? `<button class="btn btn-danger small" onclick="adminDeleteRecord('${r.type}','${r.ref}')">Admin Delete</button>` : ''}
+        ${hasPermission('canEditData') ? `<button class="btn btn-primary small" onclick="editRecord('${r.type}','${r.ref}')">Edit</button>` : ''}
+        ${hasPermission('canDeleteData') ? `<button class="btn btn-danger small" onclick="deleteRecord('${r.type}','${r.ref}')">Delete</button>` : ''}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -2375,17 +2430,70 @@ function renderRecords(list){
   document.getElementById('recordsPagerInfo').innerText = `Page ${recordsPage} / ${totalPages}`;
 }
 
-function searchRecords(){ recordsPage = 1; renderRecords(); }
-
-function printRecords(){
-  const html=companyHeaderHTML()+'<h3>Company Records (current page)</h3>'+document.querySelector('#recordsTable').outerHTML + builderFooterHTML();
-  const w=window.open(''); w.document.write(html); w.print();
+function editRecord(type, ref){
+  if(!hasPermission('canEditData')) { alert('You do not have permission to edit records'); return; }
+  
+  if(type === 'Sale') {
+    const sale = state.sales.find(s => s.id === ref);
+    if(!sale) return alert('Sale not found');
+    // Open sale modal with data populated
+    document.getElementById('saleId').value = sale.id;
+    document.getElementById('customerName').value = sale.customer;
+    document.getElementById('customerContact').value = sale.contact || '';
+    document.getElementById('saleDiscount').value = sale.meta?.flatDiscount || 0;
+    document.getElementById('saleDiscountPct').value = sale.meta?.pctDiscount || 0;
+    
+    document.getElementById('saleItems').innerHTML = '';
+    sale.items.forEach(item => {
+      addSaleItem(item.id);
+      const lastDiv = document.getElementById('saleItems').lastChild;
+      const inputs = lastDiv.querySelectorAll('input[type=number]');
+      inputs[0].value = item.qty;
+      inputs[1].value = item.price;
+    });
+    updateSaleTotal();
+    document.getElementById('saleModal').style.display = 'flex';
+  } 
+  else if(type === 'Tax Invoice') {
+    const taxInvoice = state.taxInvoices.find(t => t.id === ref);
+    if(!taxInvoice) return alert('Tax invoice not found');
+    const index = state.taxInvoices.findIndex(t => t.id === ref);
+    editTaxInvoice(index);
+  }
+  else if(type === 'Expense') {
+    const expense = state.expenses.find(e => e.id === ref);
+    if(!expense) return alert('Expense not found');
+    const index = state.expenses.findIndex(e => e.id === ref);
+    editExpense(index);
+  }
+  else if(type === 'Inventory') {
+    const inventory = state.inventory.find(i => i.id === ref);
+    if(!inventory) return alert('Inventory item not found');
+    const index = state.inventory.findIndex(i => i.id === ref);
+    editInventory(index);
+  }
+  else if(type === 'Deposit') {
+    const deposit = state.deposits.find(d => d.id === ref);
+    if(!deposit) return alert('Deposit not found');
+    // Open deposit modal with data populated
+    document.getElementById('depositId').value = deposit.id;
+    document.getElementById('depositDate').value = deposit.date;
+    document.getElementById('depositClient').value = deposit.client;
+    document.getElementById('depositAgreedAmount').value = deposit.agreedAmount;
+    document.getElementById('depositPaidAmount').value = deposit.paidAmount || 0;
+    populateInventoryForDeposits();
+    if(deposit.itemId) {
+      document.getElementById('depositItem').value = deposit.itemId;
+      updateDepositItemInfo();
+    }
+    updateRemainingBalance();
+    document.getElementById('depositModal').style.display = 'flex';
+  }
 }
 
-function adminDeleteRecord(type, ref){
-  const user = currentUser();
-  if(!user || user.role !== 'admin'){ alert('Admin access required'); return; }
-  if(!confirm(`Admin delete this ${type}?`)) return;
+function deleteRecord(type, ref){
+  if(!hasPermission('canDeleteData')) { alert('You do not have permission to delete records'); return; }
+  if(!confirm(`Delete this ${type}?`)) return;
  
   if(type === 'Sale') deleteSale(ref, 'Regular');
   else if(type === 'Prepaid Sale') deleteSale(ref, 'Prepaid');
@@ -2393,24 +2501,13 @@ function adminDeleteRecord(type, ref){
   else if(type === 'Expense') deleteExpense(ref);
   else if(type === 'Inventory') deleteInventory(ref);
   else if(type === 'Deposit') deleteDeposit(ref);
-  renderAll();
+  renderRecords();
 }
 
-function printExpense(id){
-  const e = state.expenses.find(x=>x.id===id);
-  if(!e) return alert('Expense not found');
-  let html = companyHeaderHTML();
-  html += `<h3>Expense Receipt</h3><p>${e.date}</p><p>${e.category} - ${e.description}</p><p>Amount: ${fmt(e.amount)}</p>`;
-  html += builderFooterHTML();
-  const w=window.open(''); w.document.write(html); w.print();
-}
+function searchRecords(){ recordsPage = 1; renderRecords(); }
 
-function printInventoryItem(id){
-  const i=state.inventory.find(x=>x.id===id);
-  if(!i) return alert('Item not found');
-  let html = companyHeaderHTML();
-  html += `<h3>Inventory Item</h3><p>${i.name}</p><p>Category: ${i.category||'N/A'}</p><p>Qty: ${i.qty}</p><p>Factory Price: ${fmt(i.factoryPrice || i.cost || 0)}</p><p>Retail Price: ${fmt(i.retailPrice || i.cost || 0)}</p>`;
-  html += builderFooterHTML();
+function printRecords(){
+  const html=companyHeaderHTML()+'<h3>Company Records (current page)</h3>'+document.querySelector('#recordsTable').outerHTML + builderFooterHTML();
   const w=window.open(''); w.document.write(html); w.print();
 }
 
@@ -2561,7 +2658,7 @@ function renderSettingsAdmin(){
   container.innerHTML='';
   
   if(hasPermission('canManageUsers')){
-    container.innerHTML += '<p>Enhanced system with factory/retail pricing and auto-save functionality.</p>';
+    container.innerHTML += '<p>Enhanced system with factory/retail pricing and auto-save functionality. Edit/Delete now centralized in Records page.</p>';
     const btn = document.createElement('button'); 
     btn.className='btn btn-primary'; 
     btn.textContent='Manage Users'; 
@@ -2640,7 +2737,7 @@ function updateUIForAuth(){
     profileBtn.onclick = ()=>{
       const perms = user.permissions || {};
       const permList = Object.keys(perms).filter(k=>perms[k]).join(', ');
-      alert(`Profile: ${user.username} (${user.role})\nPermissions: ${permList || 'None'}\n\nAuto-Save: Enabled\nFactory/Retail Pricing: Active`);
+      alert(`Profile: ${user.username} (${user.role})\nPermissions: ${permList || 'None'}\n\nAuto-Save: Enabled\nFactory/Retail Pricing: Active\nEdit/Delete: Records Page Only`);
     };
     qa.appendChild(profileBtn);
   }
@@ -2658,6 +2755,7 @@ function renderAll(){
   renderSettingsAdmin();
   updateUIForAuth();
   updateDashboard();
+  populateClientSuggestions();
 }
 
 // Initialize
